@@ -1,0 +1,78 @@
+# =============================================================================
+# AIDataBoon Agents: Local Development Stack
+# Docker Compose v2: extends the data platform stack with the agent API
+#
+# Includes data_platform/01_local_stack.yml (postgres, rag-api,
+# otel-collector, prometheus, grafana, jaeger, ...) and adds:
+#   agent-api  - 06_agent_api.py (FastAPI, port 8100)
+#                 prompt registry + multi-agent orchestration + guardrails
+#
+# Usage (run from repo root):
+#   docker compose -f agents/01_agents_stack.yml up -d
+#   docker compose -f agents/01_agents_stack.yml ps
+#   docker compose -f agents/01_agents_stack.yml down -v
+#
+# Note: relative paths inside an `include:`d file resolve relative to THAT
+# file's directory, so data_platform/01_local_stack.yml's own relative
+# paths (build contexts, volume mounts) are unaffected by being included here.
+#
+# Ports added:
+#   8100  Agent API (FastAPI)
+# =============================================================================
+
+include:
+  - path: ../data_platform/01_local_stack.yml
+
+services:
+  agent-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.agents
+      args:
+        PYTHON_VERSION: "3.11"
+    image: aidataboon/agent-api:dev
+    container_name: aidataboon-agent-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rag-api:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+    environment:
+      # Database (prompt registry + agent episodic memory)
+      DATABASE_URL: postgresql://aidataboon:aidataboon_secret@postgres:5432/aidataboon
+      # Retrieval tool
+      RAG_API_URL: http://rag-api:8000
+      # LLM for agent reasoning (local Ollama or OpenAI/Anthropic fallback)
+      LLM_PROVIDER: "${LLM_PROVIDER:-none}"
+      LLM_MODEL: "${LLM_MODEL:-}"
+      LLM_API_KEY: "${LLM_API_KEY:-}"
+      OLLAMA_URL: "${OLLAMA_URL:-http://host.docker.internal:11434}"
+      AGENT_MAX_ITERATIONS: "2"
+      EMBEDDING_MODEL: all-MiniLM-L6-v2
+      SENTENCE_TRANSFORMERS_HOME: /app/models
+      # Eval gate
+      EVAL_MIN_SCORE: "${EVAL_MIN_SCORE:-0.6}"
+      # Observability
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_SERVICE_NAME: aidataboon-agent-api
+      OTEL_TRACES_EXPORTER: otlp
+      # App settings
+      PORT: "8100"
+      WORKERS: "2"
+    volumes:
+      - models-cache:/app/models
+    ports:
+      - "8100:8100"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8100/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G

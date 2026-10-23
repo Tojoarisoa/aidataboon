@@ -1,0 +1,10 @@
+{"question": "What is retrieval-augmented generation and why is it used?", "expected_keywords": ["retrieval", "generation", "rag", "context"]}
+{"question": "What are recent approaches to fine-tuning large language models?", "expected_keywords": ["fine-tuning", "llm", "model", "training"]}
+{"question": "What trending Rust projects are popular for systems programming?", "expected_keywords": ["rust", "systems", "github", "trending"]}
+{"question": "What new arXiv papers discuss vector databases?", "expected_keywords": ["vector", "database", "embedding", "arxiv"]}
+{"question": "What are people on Hacker News saying about AI agents?", "expected_keywords": ["agent", "ai", "hacker news", "llm"]}
+{"question": "How does pgvector compare to other vector search solutions?", "expected_keywords": ["pgvector", "vector", "postgres", "search"]}
+{"question": "What are the latest developments in open-source LLM tooling?", "expected_keywords": ["open-source", "llm", "tooling", "model"]}
+{"question": "What GitHub repositories are trending for machine learning infrastructure?", "expected_keywords": ["github", "trending", "machine learning", "infrastructure"]}
+{"question": "What does the AIDataBoon knowledge base say about Apache Kafka?", "expected_keywords": ["kafka", "streaming", "data"]}
+{"question": "What are common patterns for deploying RAG APIs in production?", "expected_keywords": ["rag", "deploy", "api", "production"]}

@@ -1,0 +1,19 @@
+# Dockerfile.rag only COPYs 05_rag_service.py + requirements-rag.txt;
+# everything else here just bloats the build context.
+data/
+07_observability/
+mlruns/
+mlartifacts/
+.venv/
+__pycache__/
+*.py[cod]
+*.duckdb
+*.duckdb.wal
+.git/
+.pytest_cache/
+.coverage
+.terraform/
+*.tfstate*
+.env
+.env.*
+*.md

@@ -1,0 +1,41 @@
+# Python / uv
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Local lakehouse mirrors (regenerate via data_platform/03_lakehouse.py)
+data/
+
+# Terraform: state holds real resource ids and secrets, never commit it
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+
+# MLflow, DuckDB
+mlruns/
+mlartifacts/
+*.duckdb
+*.duckdb.wal
+
+# Eval output
+eval_report.json
+
+# macOS / IDE
+.DS_Store
+.vscode/
+.idea/
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+feast_repo/

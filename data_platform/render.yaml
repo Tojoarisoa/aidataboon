@@ -1,0 +1,54 @@
+# Render Blueprint for the RAG API (05_rag_service.py / Dockerfile.rag),
+# referenced by 09_cloudflare_infra.tf's render_api_hostname variable.
+#
+# First-time setup:
+#   1. Push this repo to GitHub (already done).
+#   2. In the Render dashboard: New -> Blueprint -> select this repo,
+#      root directory `data_platform`. Render reads this file and
+#      creates the service below.
+#   3. Set the DATABASE_URL secret (Neon connection string) in the
+#      service's Environment tab — it is intentionally not stored here
+#      (sync: false).
+#   4. Render builds Dockerfile.rag and deploys automatically on every
+#      push to main. No credit card required for the free plan.
+#
+# Free plan: 512MB RAM, shared CPU, spins down after 15 min idle (cold
+# start ~30-50s on the next request — acceptable for a portfolio demo and
+# matches the "$0/mo, scale-to-zero" goal in 00_project_design.md).
+# Hostname: <service-name>.onrender.com (must match render_api_hostname
+# in 09_cloudflare_infra.tf).
+
+services:
+  - type: web
+    name: aidataboon-api
+    runtime: docker
+    repo: https://github.com/Tojoarisoa/aidataboon
+    rootDir: data_platform
+    dockerfilePath: ./Dockerfile.rag
+    dockerContext: .
+    plan: free
+    region: oregon
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: "8000"
+      - key: WORKERS
+        value: "1"
+      - key: LLM_PROVIDER
+        value: none
+      - key: S3_GOLD_BUCKET
+        value: aidataboon-gold
+      - key: S3_REGION
+        value: auto
+      - key: S3_ENDPOINT_URL
+        sync: false
+      - key: S3_ACCESS_KEY
+        sync: false
+      - key: S3_SECRET_KEY
+        sync: false
+      - key: CORS_ORIGINS
+        value: https://aidataboon.com
+      - key: DATABASE_URL
+        sync: false
+      - key: UPSTREAM_API_KEY
+        sync: false

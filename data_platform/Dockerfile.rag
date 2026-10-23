@@ -1,0 +1,62 @@
+# syntax=docker/dockerfile:1
+# =============================================================================
+# AIDataBoon RAG API — container image for 05_rag_service.py
+#
+# Build context is data_platform/ (this directory):
+#   docker compose -f 01_local_stack.yml build rag-api
+#   docker build -f Dockerfile.rag -t aidataboon/rag-api:dev .
+#
+# Used by 10_cicd_pipeline.yml to build and push the image deployed to
+# Render (primary, via render.yaml Blueprint) and/or ECR/ECS
+# (08_terraform_aws.tf, optional).
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Stage 1: builder — install Python deps into a venv
+# ---------------------------------------------------------------------------
+ARG PYTHON_VERSION=3.11
+FROM python:${PYTHON_VERSION}-slim AS builder
+
+WORKDIR /app
+
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+COPY requirements-rag.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch && \
+    pip install --no-cache-dir -r requirements-rag.txt
+
+# ---------------------------------------------------------------------------
+# Stage 2: runtime — slim image, non-root user, curl for healthchecks
+# ---------------------------------------------------------------------------
+ARG PYTHON_VERSION=3.11
+FROM python:${PYTHON_VERSION}-slim AS runtime
+
+RUN apt-get update && \
+    apt-get install --no-install-recommends -y ca-certificates curl && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN useradd --create-home --shell /bin/bash appuser
+WORKDIR /app
+
+COPY --from=builder /opt/venv /opt/venv
+COPY 05_rag_service.py .
+
+# /app/models: sentence-transformers cache (mounted as a volume in
+# 01_local_stack.yml). /app/data: optional local Gold-layer parquet fallback.
+RUN mkdir -p /app/models /app/data && chown -R appuser:appuser /app
+
+ENV PATH="/opt/venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    PORT=8000 \
+    WORKERS=2 \
+    SENTENCE_TRANSFORMERS_HOME=/app/models
+
+USER appuser
+EXPOSE 8000
+
+HEALTHCHECK --interval=15s --timeout=5s --start-period=60s --retries=5 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+CMD exec uvicorn 05_rag_service:app --host 0.0.0.0 --port "${PORT}" --workers "${WORKERS}"

@@ -1,0 +1,64 @@
+# syntax=docker/dockerfile:1
+# =============================================================================
+# AIDataBoon Agent API — container image for 06_agent_api.py
+#
+# Build context is agents/ (this directory):
+#   docker compose -f 01_agents_stack.yml build agent-api
+#   docker build -f Dockerfile.agents -t aidataboon/agent-api:dev .
+#
+# 06_agent_api.py dynamically loads 02_prompt_registry.py,
+# 04_agent_orchestration.py, and 05_agent_observability.py via
+# importlib.util.spec_from_file_location (numbered files aren't valid
+# dotted module names), so all four files are copied into the image.
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Stage 1: builder — install Python deps into a venv
+# ---------------------------------------------------------------------------
+ARG PYTHON_VERSION=3.11
+FROM python:${PYTHON_VERSION}-slim AS builder
+
+WORKDIR /app
+
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+COPY requirements-agents.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch && \
+    pip install --no-cache-dir -r requirements-agents.txt
+
+# ---------------------------------------------------------------------------
+# Stage 2: runtime — slim image, non-root user, curl for healthchecks
+# ---------------------------------------------------------------------------
+ARG PYTHON_VERSION=3.11
+FROM python:${PYTHON_VERSION}-slim AS runtime
+
+RUN apt-get update && \
+    apt-get install --no-install-recommends -y ca-certificates curl && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN useradd --create-home --shell /bin/bash appuser
+WORKDIR /app
+
+COPY --from=builder /opt/venv /opt/venv
+COPY 02_prompt_registry.py 04_agent_orchestration.py 05_agent_observability.py 06_agent_api.py ./
+
+# /app/models: shared sentence-transformers cache (same volume as rag-api).
+RUN mkdir -p /app/models && chown -R appuser:appuser /app
+
+ENV PATH="/opt/venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    PORT=8100 \
+    WORKERS=1 \
+    SENTENCE_TRANSFORMERS_HOME=/app/models
+
+USER appuser
+EXPOSE 8100
+
+HEALTHCHECK --interval=15s --timeout=5s --start-period=60s --retries=5 \
+    CMD curl -f http://localhost:8100/health || exit 1
+
+# uvicorn's `module:attr` CLI form requires a valid dotted module name, which
+# "06_agent_api" is not — load the app object directly instead.
+CMD ["python", "-c", "import importlib.util, os, sys, uvicorn\nspec = importlib.util.spec_from_file_location('agent_api', '06_agent_api.py')\nmod = importlib.util.module_from_spec(spec)\nsys.modules['agent_api'] = mod\nspec.loader.exec_module(mod)\nuvicorn.run(mod.app, host='0.0.0.0', port=int(os.environ.get('PORT', '8100')))"]

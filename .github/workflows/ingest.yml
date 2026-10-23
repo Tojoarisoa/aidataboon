@@ -1,0 +1,51 @@
+# Manually-triggered data engineering run for AIDataBoon.
+#
+# Runs on a GitHub-hosted runner so it has unrestricted access to
+# hn.algolia.com, export.arxiv.org and api.github.com (some local
+# networks block/throttle these), then writes Bronze -> Silver -> Gold
+# straight to Cloudflare R2 via 02_data_ingestion.py and 03_lakehouse.py.
+#
+# One-time setup: add these as repo secrets (Settings -> Secrets and
+# variables -> Actions) using your Cloudflare R2 API Token:
+#   S3_ENDPOINT_URL  - https://<account_id>.r2.cloudflarestorage.com
+#   S3_ACCESS_KEY    - R2 token Access Key ID
+#   S3_SECRET_KEY    - R2 token Secret Access Key
+#
+# Then run this workflow from the Actions tab (workflow_dispatch).
+name: Data ingestion (R2)
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Run data ingestion (HN, arXiv, GitHub -> Bronze)
+        env:
+          S3_ENDPOINT_URL: ${{ secrets.S3_ENDPOINT_URL }}
+          S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
+          S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
+          S3_REGION: auto
+          S3_BRONZE_BUCKET: aidataboon-bronze
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: uv run python data_platform/02_data_ingestion.py
+
+      - name: Run lakehouse pipeline (Bronze -> Silver -> Gold)
+        env:
+          S3_ENDPOINT_URL: ${{ secrets.S3_ENDPOINT_URL }}
+          S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
+          S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
+          S3_REGION: auto
+          S3_BRONZE_BUCKET: aidataboon-bronze
+          S3_SILVER_BUCKET: aidataboon-silver
+          S3_GOLD_BUCKET: aidataboon-gold
+        run: uv run python data_platform/03_lakehouse.py

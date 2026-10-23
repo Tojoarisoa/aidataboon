@@ -1,0 +1,40 @@
+# Render Blueprint for the agent API (06_agent_api.py / Dockerfile.agents),
+# referenced by 07_cloudflare_agents.tf's render_agent_hostname variable.
+#
+# First-time setup:
+#   1. In the Render dashboard: New -> Blueprint -> select this repo,
+#      root directory `agents`. Render reads this file
+#      and creates the service below.
+#   2. Set the DATABASE_URL secret (same Neon project as the RAG API, or a
+#      separate one) in the service's Environment tab.
+#   3. Render builds Dockerfile.agents and deploys automatically on every
+#      push to main. No credit card required for the free plan.
+#
+# Free plan: 512MB RAM, shared CPU, spins down after 15 min idle (cold
+# start ~30-50s on the next request). Hostname: <service-name>.onrender.com
+# (must match render_agent_hostname in 07_cloudflare_agents.tf).
+
+services:
+  - type: web
+    name: aidataboon-agents
+    runtime: docker
+    repo: https://github.com/Tojoarisoa/aidataboon
+    rootDir: agents
+    dockerfilePath: ./Dockerfile.agents
+    dockerContext: .
+    plan: free
+    region: oregon
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: "8100"
+      - key: WORKERS
+        value: "1"
+      - key: LLM_PROVIDER
+        value: none
+      - key: RAG_API_URL
+        value: https://api.aidataboon.com/v1
+      - key: DATABASE_URL
+        sync: false
+      - key: UPSTREAM_API_KEY
+        sync: false

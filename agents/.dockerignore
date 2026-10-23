@@ -1,0 +1,20 @@
+# Dockerfile.agents only COPYs the numbered .py modules + requirements-agents.txt;
+# everything else here just bloats the build context.
+golden_qa.jsonl
+eval_report.json
+grafana_local/
+*.tf
+*.tfvars
+.terraform/
+*.tfstate*
+__pycache__/
+*.py[cod]
+.venv/
+.git/
+.pytest_cache/
+.coverage
+.env
+.env.*
+*.md
+*.yml
+*.yaml

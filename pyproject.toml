@@ -1,0 +1,20 @@
+[project]
+name = "aidataboon"
+version = "0.1.0"
+description = "AIDataBoon: AI-powered data infrastructure platform (RAG search) and LLMOps agents"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "anthropic>=0.106.0",
+    "boto3>=1.43.29",
+    "deltalake>=1.6.0",
+    "duckdb>=1.5.3",
+    "httpx>=0.28.1",
+    "ipykernel>=7.2.0",
+    "matplotlib>=3.10.9",
+    "mlflow>=3.13.0",
+    "numpy>=2.4.6",
+    "pandas>=2.3.3",
+    "python-dotenv>=1.2.2",
+    "scikit-learn>=1.9.0",
+]

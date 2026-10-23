@@ -1,0 +1,110 @@
+# =============================================================================
+# AIDataBoon Agents: CI/CD + Eval Gate
+#
+# To activate, copy this file to .github/workflows/agents-cicd.yml (or
+# symlink it). Kept inside agents/ next to the module it gates.
+#
+# Jobs:
+#   lint-and-typecheck - ruff + mypy over agents
+#   eval-gate          - 03_eval_harness.py against golden_qa.jsonl; fails
+#                         the build if mean composite score < EVAL_MIN_SCORE
+#                         (ADR-5). Runs with LLM_PROVIDER=none and no RAG API,
+#                         exercising the dependency-free fallback paths so the
+#                         gate runs on every PR with no external services.
+#   build-agent-image  - builds Dockerfile.agents (main branch only)
+#   deploy             - triggers the Render deploy hook for the agent-api
+#                         service (main branch only, requires
+#                         RENDER_DEPLOY_HOOK_URL secret). Render's own
+#                         GitHub integration (render.yaml, autoDeploy) also
+#                         redeploys on push to main; this job exists so the
+#                         deploy only fires after lint/eval/build pass.
+# =============================================================================
+
+name: AIDataBoon Agents CI/CD
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "agents/**"
+      - "data_platform/05_rag_service.py"
+  pull_request:
+    paths:
+      - "agents/**"
+      - "data_platform/05_rag_service.py"
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  lint-and-typecheck:
+    name: Lint & Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Ruff
+        run: uvx ruff check agents/
+
+      - name: Mypy
+        run: uv run --with mypy mypy agents/
+
+  eval-gate:
+    name: RAG Eval Gate
+    runs-on: ubuntu-latest
+    needs: lint-and-typecheck
+    env:
+      LLM_PROVIDER: none
+      EVAL_MIN_SCORE: "0.6"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Run eval harness
+        run: uv run python agents/03_eval_harness.py
+
+      - name: Upload eval report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report
+          path: agents/eval_report.json
+
+  build-agent-image:
+    name: Build agent-api image
+    runs-on: ubuntu-latest
+    needs: eval-gate
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build agent-api image
+        uses: docker/build-push-action@v6
+        with:
+          context: agents
+          file: agents/Dockerfile.agents
+          push: false
+          tags: aidataboon/agent-api:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy agent-api (Render)
+    runs-on: ubuntu-latest
+    needs: build-agent-image
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Trigger Render deploy hook
+        run: curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"

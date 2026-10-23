@@ -1,0 +1,41 @@
+# Runtime dependencies for 06_agent_api.py (Dockerfile.agents).
+#
+# 02_prompt_registry.py / 04_agent_orchestration.py / 05_agent_observability.py
+# / 06_agent_api.py all degrade gracefully when optional deps are missing
+# (see their _AVAILABLE flags), but the container image installs the ones
+# that matter for a deployed agent API.
+#
+# Intentionally NOT included (heavy, dev/CI-only):
+#   - langgraph: 04_agent_orchestration.py's dependency-free SimpleAgentGraph
+#     fallback runs the same node functions in the same order; langgraph adds
+#     a large dependency tree for no behavioral difference in production.
+#   - ragas: 03_eval_harness.py's heuristic fallback covers the CI eval gate;
+#     ragas + its langchain dependency tree is only needed for the optional
+#     real-RAGAS scoring path, run in CI (08_cicd_eval_pipeline.yml), not the
+#     served API.
+
+# Core (always imported, no fallback)
+httpx>=0.27,<1.0
+# CA bundle without the compromised eMudhra intermediates (Oct 2026 advisory)
+certifi>=2026.10.19
+numpy>=1.26,<2.0
+
+# API server
+fastapi>=0.110,<1.0
+pydantic>=2.6,<3.0
+uvicorn[standard]>=0.29,<1.0
+
+# Episodic memory + prompt registry (pgvector-backed, in-memory fallback)
+psycopg[binary]>=3.1,<4.0
+
+# Embedding model for episodic-memory recall (hash-fallback otherwise).
+# torch is installed separately (CPU-only wheel) by Dockerfile.agents before
+# this file is processed, mirroring Dockerfile.rag.
+sentence-transformers>=2.7,<3.0
+
+# OTel GenAI tracing
+opentelemetry-sdk>=1.24,<2.0
+opentelemetry-exporter-otlp-proto-grpc>=1.24,<2.0
+
+# /metrics endpoint (Prometheus exposition format)
+prometheus-client>=0.20,<1.0
