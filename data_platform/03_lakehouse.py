@@ -366,13 +366,15 @@ class SilverProcessor:
             "num_comments" if _has(cols, "num_comments")
             else ("len(children)" if _has(cols, "children") else "0")
         )
+        # Most HN stories are links with no text of their own; their title is
+        # the content, or build_knowledge_base() would drop them as empty.
         return self.engine.sql(
             f"""
             SELECT
                 'hn_' || CAST({id_expr} AS VARCHAR)                         AS id,
                 'hackernews'                                                AS source,
                 title                                                       AS title,
-                COALESCE({story_text}, '')                                  AS content,
+                COALESCE(NULLIF(trim({story_text}), ''), title)             AS content,
                 COALESCE({story_text}, title)                               AS abstract,
                 COALESCE({url_expr}, 'https://news.ycombinator.com/item?id=' || CAST({id_expr} AS VARCHAR)) AS url,
                 COALESCE(author, 'unknown')                                 AS author,
