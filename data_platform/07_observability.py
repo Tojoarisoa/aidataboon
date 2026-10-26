@@ -147,7 +147,7 @@ class ObservabilityConfig:
 # SECTION 2: OPENTELEMETRY TRACING
 # ─────────────────────────────────────────────────────────────────────────────
 
-def setup_tracing(config: ObservabilityConfig | None = None) -> "trace.Tracer | None":
+def setup_tracing(config: ObservabilityConfig | None = None) -> trace.Tracer | None:
     """Configure a global TracerProvider exporting spans via OTLP/gRPC to the
     OTel Collector (which forwards to Jaeger, see otel-collector-config.yml).
     Falls back to console export if the OTLP exporter package or collector

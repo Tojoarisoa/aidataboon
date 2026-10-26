@@ -17,16 +17,15 @@ Features:
 from __future__ import annotations
 
 import json
-import math
+import logging
+import threading
 import time
 import uuid
-import threading
-import logging
-from abc import ABC, abstractmethod
-from collections import defaultdict, deque
+from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Callable, Optional
+from datetime import UTC, datetime
+from typing import Any, ClassVar
 
 import requests
 
@@ -41,10 +40,9 @@ logger = logging.getLogger("aidataboon.streaming")
 # Optional heavy imports: gracefully degrade for demo mode
 # ---------------------------------------------------------------------------
 try:
-    from confluent_kafka import Producer, Consumer, KafkaError, KafkaException
+    from confluent_kafka import Consumer, KafkaError, Producer
     from confluent_kafka.admin import AdminClient, NewTopic
     from confluent_kafka.schema_registry import SchemaRegistryClient as _SRClient
-    from confluent_kafka.schema_registry.avro import AvroSerializer, AvroDeserializer
     KAFKA_AVAILABLE = True
 except ImportError:
     KAFKA_AVAILABLE = False
@@ -114,7 +112,7 @@ class SchemaRegistryClient:
     def __init__(self, url: str = "http://localhost:8081") -> None:
         self.url = url
         self._cache: dict[str, Any] = {}
-        self._client: Optional[Any] = None
+        self._client: Any | None = None
 
         if KAFKA_AVAILABLE:
             try:
@@ -140,7 +138,7 @@ class SchemaRegistryClient:
         logger.info("Registered schema '%s' → id=%d", subject, registered)
         return registered
 
-    def get_schema(self, subject: str) -> Optional[dict[str, Any]]:
+    def get_schema(self, subject: str) -> dict[str, Any] | None:
         """Return the latest schema dict for *subject* (cached)."""
         if subject in self._cache:
             return self._cache[subject]
@@ -196,7 +194,7 @@ class AIDataBoonProducer:
       - max.in.flight… = 5        (ordered delivery with idempotence)
     """
 
-    _IDEMPOTENT_CONFIG: dict[str, Any] = {
+    _IDEMPOTENT_CONFIG: ClassVar[dict[str, Any]] = {
         "bootstrap.servers": KAFKA_BOOTSTRAP,
         "enable.idempotence": True,
         "acks": "all",
@@ -207,11 +205,11 @@ class AIDataBoonProducer:
         "batch.size": 65_536,
     }
 
-    def __init__(self, extra_config: Optional[dict] = None) -> None:
+    def __init__(self, extra_config: dict | None = None) -> None:
         cfg = {**self._IDEMPOTENT_CONFIG, **(extra_config or {})}
         self.published_count = 0
         self.error_count = 0
-        self._producer: Optional[Any] = None
+        self._producer: Any | None = None
 
         if KAFKA_AVAILABLE:
             self._producer = Producer(cfg)
@@ -242,8 +240,8 @@ class AIDataBoonProducer:
         self,
         topic: str,
         value: bytes,
-        key: Optional[bytes] = None,
-        headers: Optional[list] = None,
+        key: bytes | None = None,
+        headers: list | None = None,
     ) -> None:
         if self._producer is None:
             logger.info("[stub] publish → %s  key=%s  len=%d", topic, key, len(value))
@@ -325,7 +323,7 @@ class HNEventProducer(AIDataBoonProducer):
         payload = self._serialize(event)
         self.publish(TOPIC_HN_EVENTS, payload, key=key)
 
-    def poll_and_publish(self, interval_seconds: Optional[int] = None) -> None:
+    def poll_and_publish(self, interval_seconds: int | None = None) -> None:
         """
         Continuously poll HN Algolia and publish new stories.
         Runs until `stop()` is called.
@@ -377,7 +375,7 @@ class AIDataBoonConsumer:
       - Manual commit after each batch
     """
 
-    _BASE_CONFIG: dict[str, Any] = {
+    _BASE_CONFIG: ClassVar[dict[str, Any]] = {
         "bootstrap.servers": KAFKA_BOOTSTRAP,
         "isolation.level": "read_committed",
         "enable.auto.commit": False,
@@ -387,13 +385,13 @@ class AIDataBoonConsumer:
         "heartbeat.interval.ms": 3_000,
     }
 
-    def __init__(self, group_id: str, extra_config: Optional[dict] = None) -> None:
+    def __init__(self, group_id: str, extra_config: dict | None = None) -> None:
         cfg = {
             **self._BASE_CONFIG,
             "group.id": group_id,
             **(extra_config or {}),
         }
-        self._consumer: Optional[Any] = None
+        self._consumer: Any | None = None
         self._running = False
         self.processed_count = 0
         self.error_count = 0
@@ -435,7 +433,7 @@ class HNEventConsumer(AIDataBoonConsumer):
       4. Commit offsets: only on success (abort if write fails)
     """
 
-    CATEGORY_RULES: dict[str, list[str]] = {
+    CATEGORY_RULES: ClassVar[dict[str, list[str]]] = {
         "AI/ML":       ["gpt", "llm", "ai", "ml", "machine learning", "neural", "model"],
         "Systems":     ["rust", "linux", "kernel", "compiler", "low-level", "c++"],
         "Web":         ["javascript", "typescript", "react", "nextjs", "css", "frontend"],
@@ -444,8 +442,8 @@ class HNEventConsumer(AIDataBoonConsumer):
         "Open Source": ["open source", "github", "release", "contributor"],
     }
 
-    POSITIVE_WORDS = {"good", "great", "excellent", "amazing", "fast", "better", "best"}
-    NEGATIVE_WORDS = {"bad", "broken", "slow", "fail", "bug", "problem", "issue"}
+    POSITIVE_WORDS: ClassVar[set[str]] = {"good", "great", "excellent", "amazing", "fast", "better", "best"}
+    NEGATIVE_WORDS: ClassVar[set[str]] = {"bad", "broken", "slow", "fail", "bug", "problem", "issue"}
 
     def __init__(
         self,
@@ -456,7 +454,7 @@ class HNEventConsumer(AIDataBoonConsumer):
         self.schema_registry = schema_registry
         self._db = None
         self._db_path = db_path
-        self._dlq_handler: Optional[DLQHandler] = None
+        self._dlq_handler: DLQHandler | None = None
 
         if DUCKDB_AVAILABLE:
             self._db = duckdb.connect(db_path)
@@ -477,7 +475,7 @@ class HNEventConsumer(AIDataBoonConsumer):
                 )
             """)
 
-    def set_dlq_handler(self, handler: "DLQHandler") -> None:
+    def set_dlq_handler(self, handler: DLQHandler) -> None:
         self._dlq_handler = handler
 
     # -- enrichment ----------------------------------------------------------
@@ -508,7 +506,7 @@ class HNEventConsumer(AIDataBoonConsumer):
 
     # -- processing ----------------------------------------------------------
 
-    def _deserialize(self, raw: bytes, partition: int, offset: int) -> Optional[dict]:
+    def _deserialize(self, raw: bytes, partition: int, offset: int) -> dict | None:
         try:
             return json.loads(raw.decode())
         except Exception as exc:
@@ -528,7 +526,7 @@ class HNEventConsumer(AIDataBoonConsumer):
             return
 
         ts = datetime.fromtimestamp(
-            event["timestamp"] / 1000, tz=timezone.utc
+            event["timestamp"] / 1000, tz=UTC
         ).isoformat()
 
         self._db.execute(
@@ -729,14 +727,14 @@ class SessionWindow:
         # author → (session_start_ms, last_event_ms, bucket)
         self._sessions: dict[str, tuple[int, int, WindowedBucket]] = {}
 
-    def update(self, event: dict[str, Any]) -> Optional[WindowedBucket]:
+    def update(self, event: dict[str, Any]) -> WindowedBucket | None:
         """
         Update the session for *event["author"]*.
         Returns the closed bucket if the previous session timed out.
         """
         author = event.get("author", "unknown")
         ts = event.get("timestamp", int(time.time() * 1000))
-        closed: Optional[WindowedBucket] = None
+        closed: WindowedBucket | None = None
 
         if author in self._sessions:
             start, last, bucket = self._sessions[author]
@@ -858,7 +856,7 @@ class DLQHandler:
     understand what went wrong and replay or discard events.
     """
 
-    def __init__(self, producer: Optional[AIDataBoonProducer] = None) -> None:
+    def __init__(self, producer: AIDataBoonProducer | None = None) -> None:
         self._producer = producer or AIDataBoonProducer()
         self.dlq_count = 0
 
@@ -915,7 +913,7 @@ class DLQReprocessor:
         self.repaired_count = 0
         self.failed_count = 0
 
-    def _attempt_repair(self, dlq_event: dict[str, Any]) -> Optional[dict[str, Any]]:
+    def _attempt_repair(self, dlq_event: dict[str, Any]) -> dict[str, Any] | None:
         try:
             raw = bytes.fromhex(dlq_event["original_payload"])
             event = json.loads(raw.decode())
@@ -989,7 +987,7 @@ class PrometheusCounter:
         self.labels = labels
         self._values: dict[tuple, float] = defaultdict(float)
 
-    def labels_instance(self, **kwargs: str) -> "PrometheusCounter":
+    def labels_instance(self, **kwargs: str) -> PrometheusCounter:
         key = tuple(kwargs.get(l, "") for l in self.labels)
         self._active_key = key
         return self
@@ -1029,9 +1027,9 @@ class LagMonitor:
     def __init__(
         self,
         bootstrap_servers: str = KAFKA_BOOTSTRAP,
-        alert_callback: Optional[Callable[[str, str, int, int], None]] = None,
+        alert_callback: Callable[[str, str, int, int], None] | None = None,
     ) -> None:
-        self._admin: Optional[Any] = None
+        self._admin: Any | None = None
         self._alert_callback = alert_callback or self._default_alert
 
         if KAFKA_AVAILABLE:
@@ -1074,7 +1072,7 @@ class LagMonitor:
 
             watermarks = {}
             for tp in partitions:
-                lo, hi = self._admin._client.query_watermark_offsets(
+                _lo, hi = self._admin._client.query_watermark_offsets(
                     topic, tp.partition, timeout=5.0
                 )
                 watermarks[tp.partition] = hi

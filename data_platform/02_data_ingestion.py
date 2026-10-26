@@ -12,7 +12,6 @@ Quality: Great Expectations inline checks
 
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
 import os
@@ -21,7 +20,7 @@ import time
 import uuid
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import urlencode
 
@@ -157,7 +156,7 @@ class S3StorageClient:
 
     @staticmethod
     def _now_partition_keys() -> dict[str, str]:
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         return {
             "year": now.strftime("%Y"),
             "month": now.strftime("%m"),
@@ -228,7 +227,7 @@ class QualityResult:
     score: float               # 0.0 – 1.0
     violations: list[str]
     row_count: int
-    checked_at: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    checked_at: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
 
     def raise_if_failed(self) -> None:
         if not self.passed:
@@ -328,8 +327,8 @@ class DataQualityChecker:
             return violations
         latest = max(timestamps)
         if latest.tzinfo is None:
-            latest = latest.replace(tzinfo=timezone.utc)
-        age = datetime.now(tz=timezone.utc) - latest
+            latest = latest.replace(tzinfo=UTC)
+        age = datetime.now(tz=UTC) - latest
         if age > timedelta(hours=max_age_hours):
             violations.append(
                 f"freshness: latest '{ts_column}' is {age} old "
@@ -510,7 +509,7 @@ def hn_batch_ingestion() -> None:
 
         # Attach ingestion metadata to every record
         batch_id = uuid.uuid4().hex
-        ingested_at = datetime.now(tz=timezone.utc).isoformat()
+        ingested_at = datetime.now(tz=UTC).isoformat()
         for story in stories:
             story["_ingested_at"] = ingested_at
             story["_batch_id"] = batch_id
@@ -518,7 +517,7 @@ def hn_batch_ingestion() -> None:
             story["_quality_score"] = quality["score"]
 
         client = S3StorageClient(STORAGE_CONFIG)
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         uri = client.write_json_batch(
             prefix=HN_SOURCE_CONFIG.prefix,
             data=stories,
@@ -665,7 +664,7 @@ def arxiv_batch_ingestion() -> None:
                 continue
 
             for entry in root.findall("atom:entry", _ARXIV_NAMESPACES):
-                def _text(tag: str) -> str | None:
+                def _text(tag: str, entry: ET.Element = entry) -> str | None:
                     el = entry.find(tag, _ARXIV_NAMESPACES)
                     return el.text.strip() if el is not None and el.text else None
 
@@ -733,14 +732,14 @@ def arxiv_batch_ingestion() -> None:
         if not papers:
             raise ValueError("arxiv write_to_bronze: no papers to write")
         batch_id = uuid.uuid4().hex
-        ingested_at = datetime.now(tz=timezone.utc).isoformat()
+        ingested_at = datetime.now(tz=UTC).isoformat()
         for p in papers:
             p["_ingested_at"] = ingested_at
             p["_batch_id"] = batch_id
             p["_source"] = "arxiv"
 
         client = S3StorageClient(STORAGE_CONFIG)
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         uri = client.write_json_batch(
             prefix=ARXIV_SOURCE_CONFIG.prefix,
             data=papers,
@@ -797,7 +796,7 @@ def github_trending_ingest() -> None:
         """
         import os
 
-        since_date = (datetime.now(tz=timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%d")
+        since_date = (datetime.now(tz=UTC) - timedelta(days=7)).strftime("%Y-%m-%d")
         params = {
             "q": f"pushed:>{since_date} topic:machine-learning language:python stars:>100",
             "sort": "stars",
@@ -892,7 +891,7 @@ def github_trending_ingest() -> None:
         if not repos:
             raise ValueError("github write_to_bronze: no repos to write")
         batch_id = uuid.uuid4().hex
-        ingested_at = datetime.now(tz=timezone.utc).isoformat()
+        ingested_at = datetime.now(tz=UTC).isoformat()
         for r in repos:
             r["_ingested_at"] = ingested_at
             r["_batch_id"] = batch_id
@@ -900,7 +899,7 @@ def github_trending_ingest() -> None:
             r["_quality_score"] = quality["score"]
 
         client = S3StorageClient(STORAGE_CONFIG)
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         uri = client.write_json_batch(
             prefix=GITHUB_SOURCE_CONFIG.prefix,
             data=repos,
@@ -1089,7 +1088,7 @@ def post_connector_to_kafka_connect(
     resp.raise_for_status()
     log.info(
         "Kafka Connect connector configured",
-        extra={"name": name, "status_code": resp.status_code, "action": "update" if already_exists else "create"},
+        extra={"connector": name, "status_code": resp.status_code, "action": "update" if already_exists else "create"},
     )
     return resp.json()
 
@@ -1166,7 +1165,7 @@ def _demo_arxiv_fetch() -> list[dict]:
     root = ET.fromstring(resp.text)
     papers: list[dict] = []
     for entry in root.findall("atom:entry", _ARXIV_NAMESPACES):
-        def _t(tag: str) -> str | None:
+        def _t(tag: str, entry: ET.Element = entry) -> str | None:
             el = entry.find(tag, _ARXIV_NAMESPACES)
             return el.text.strip() if el is not None and el.text else None
 

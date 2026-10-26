@@ -25,7 +25,7 @@ import logging
 import os
 import time
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -792,7 +792,7 @@ class PipelineResult:
 def _sample_bronze_relations(engine: LakehouseEngine) -> tuple[duckdb.DuckDBPyRelation, duckdb.DuckDBPyRelation, duckdb.DuckDBPyRelation]:
     """Synthetic Bronze data so the pipeline runs end-to-end without MinIO.
     Shapes match exactly what 02_data_ingestion.py lands in production."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     iso = now.isoformat()
 
     hn = engine.con.sql(
@@ -831,7 +831,7 @@ def run_full_pipeline(run_date: date | None = None) -> PipelineResult:
     Tries real MinIO/S3 Bronze data first; if none is found (e.g. the
     Airflow DAGs in 02_data_ingestion.py haven't run yet), falls back to
     synthetic sample data so the lakehouse logic can still be exercised."""
-    run_date = run_date or datetime.now(timezone.utc).date()
+    run_date = run_date or datetime.now(UTC).date()
     started = time.monotonic()
     log.info("=== AIDataBoon Lakehouse Pipeline: %s ===", run_date.isoformat())
 

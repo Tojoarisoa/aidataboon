@@ -18,9 +18,9 @@ import logging
 import textwrap
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 import duckdb
 import mlflow
@@ -29,12 +29,12 @@ import numpy as np
 import pandas as pd
 from mlflow.tracking import MlflowClient
 from scipy import stats
+from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report, f1_score
 from sklearn.model_selection import StratifiedKFold, cross_validate, train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import LabelEncoder
-from sklearn.feature_extraction.text import TfidfVectorizer
 
 logger = logging.getLogger(__name__)
 
@@ -292,8 +292,7 @@ class TopicClassifier:
                         C=1.0,
                         max_iter=1_000,
                         class_weight="balanced",
-                        solver="lbfgs",
-                        multi_class="multinomial",
+                        solver="lbfgs",  # multinomial for multi-class targets (the default)
                         random_state=42,
                     ),
                 ),
@@ -605,7 +604,7 @@ if _FASTAPI_AVAILABLE:
             self.app = self._build_app()
 
         # --------------------------------------------------------------
-        def _build_app(self) -> "FastAPI":
+        def _build_app(self) -> FastAPI:
             try:
                 from prometheus_client import Histogram as PromHistogram
                 REQUEST_LATENCY = PromHistogram(
@@ -755,7 +754,7 @@ class DriftDetector:
 class DataDriftMonitor:
     """Monitor feature distributions between a reference window and new batches."""
 
-    MONITORED_FEATURES = ["title_length", "score", "topic_count"]
+    MONITORED_FEATURES: ClassVar[list[str]] = ["title_length", "score", "topic_count"]
     REFERENCE_PATH = "/tmp/aidataboon_drift_reference.json"
     PSI_ALERT_THRESHOLD = 0.2
 
@@ -826,8 +825,8 @@ class DataDriftMonitor:
             )
             for alert_feat in [f for f, p in feature_psi.items() if p > self.PSI_ALERT_THRESHOLD]:
                 DRIFT_ALERT_COUNTER.labels(feature=alert_feat).inc()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Prometheus drift alert counter not updated (%s)", exc)
 
         # Log PSI scores to MLflow
         self._log_drift_to_mlflow(feature_psi)
@@ -841,7 +840,7 @@ class DataDriftMonitor:
             overall = "significant"
 
         return DriftReport(
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
             feature_psi=feature_psi,
             feature_ks=feature_ks,
             overall_drift=overall,
@@ -882,7 +881,6 @@ def run_ml_pipeline(
     # -- Feature engineering -----------------------------------------------
     feat_config = FeatureStoreConfig()
     feat_config.write_repo_files()
-    engineer = FeatureEngineer(feat_config)
 
     logger.info("Step 1: Feature engineering (synthetic data)")
     # Synthetic DataFrame so the pipeline runs without real Gold data

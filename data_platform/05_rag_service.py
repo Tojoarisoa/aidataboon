@@ -46,9 +46,9 @@ import time
 from collections import Counter, defaultdict
 from contextlib import asynccontextmanager
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 import duckdb
 import httpx
@@ -93,7 +93,8 @@ except ImportError:
     _FEAST_AVAILABLE = False
 
 try:
-    from prometheus_client import CONTENT_TYPE_LATEST, Counter as PromCounter, Histogram, generate_latest
+    from prometheus_client import CONTENT_TYPE_LATEST, Histogram, generate_latest
+    from prometheus_client import Counter as PromCounter
     _PROMETHEUS_AVAILABLE = True
 except ImportError:
     _PROMETHEUS_AVAILABLE = False
@@ -141,11 +142,11 @@ def _coerce_datetime(value: Any) -> datetime | None:
     if value is None:
         return None
     if isinstance(value, datetime):
-        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+        return value if value.tzinfo else value.replace(tzinfo=UTC)
     if isinstance(value, str):
         try:
             dt = datetime.fromisoformat(value)
-            return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+            return dt if dt.tzinfo else dt.replace(tzinfo=UTC)
         except ValueError:
             return None
     return None
@@ -155,7 +156,7 @@ def _days_since(value: Any) -> float:
     dt = _coerce_datetime(value)
     if dt is None:
         return 999.0
-    return max((datetime.now(timezone.utc) - dt).total_seconds() / 86400, 0.0)
+    return max((datetime.now(UTC) - dt).total_seconds() / 86400, 0.0)
 
 
 def _serialize_source(row: dict[str, Any]) -> dict[str, Any]:
@@ -417,20 +418,20 @@ def _detect_time_window(query: str) -> tuple[TimeWindow | None, str]:
         return None, query
 
     cleaned = re.sub(r"\s+", " ", f"{query[:span[0]]} {query[span[1]:]}").strip()
-    return TimeWindow(label=window[0], since=datetime.now(timezone.utc) - window[1]), cleaned or query
+    return TimeWindow(label=window[0], since=datetime.now(UTC) - window[1]), cleaned or query
 
 
 def _newest_first(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Orders the chosen results by `published_at`, newest first, with
     undated rows last. Stable, so equal dates keep their relevance order."""
-    epoch = datetime.min.replace(tzinfo=timezone.utc)
+    epoch = datetime.min.replace(tzinfo=UTC)
     return sorted(rows, key=lambda r: _coerce_datetime(r.get("published_at")) or epoch, reverse=True)
 
 
 def _blend_recency(candidates: list[dict[str, Any]], rrf_k: int) -> list[dict[str, Any]]:
     """Reciprocal Rank Fusion of relevance order (as given) and recency
     order, so "latest X" favors newer items without dropping relevance."""
-    epoch = datetime.min.replace(tzinfo=timezone.utc)
+    epoch = datetime.min.replace(tzinfo=UTC)
     by_recency = sorted(
         range(len(candidates)),
         key=lambda i: _coerce_datetime(candidates[i].get("published_at")) or epoch,
@@ -638,7 +639,7 @@ class VectorStore:
         self, query_embedding: np.ndarray, limit: int, since: datetime | None, source: str | None
     ) -> list[dict[str, Any]]:
         # The DuckDB column is a naive UTC TIMESTAMP.
-        naive_since = since.astimezone(timezone.utc).replace(tzinfo=None) if since else None
+        naive_since = since.astimezone(UTC).replace(tzinfo=None) if since else None
         res = self._duck.execute(
             """
             SELECT * EXCLUDE (embedding), list_cosine_similarity(embedding, ?) AS vector_score
@@ -1040,32 +1041,32 @@ def _synthetic_knowledge_base() -> list[Document]:
     """Small built-in corpus so `/search` always has something to find,
     used when neither the local Gold mirror nor S3 has `knowledge_base`
     yet (e.g. before 03_lakehouse.py has run)."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     samples: list[tuple[str, str, str, str, str, list[str], int, int, datetime]] = [
         ("hn_2001", "hackernews", "Show HN: Hybrid search RAG over pgvector + BM25",
-         "We combine HNSW cosine search in pgvector with Postgres full-text BM25 ranking, "
+         ("We combine HNSW cosine search in pgvector with Postgres full-text BM25 ranking, "
          "fused via reciprocal rank fusion, then re-rank the top 20 with a cross-encoder "
-         "before generating a cited answer.",
+         "before generating a cited answer."),
          "alice", ["rag", "pgvector", "search"], 280, 54, now - timedelta(hours=3)),
         ("arxiv_2406.01000", "arxiv", "Cross-Encoder Re-Ranking for Retrieval-Augmented Generation",
-         "We study the effect of cross-encoder re-ranking on RAG pipeline answer quality "
+         ("We study the effect of cross-encoder re-ranking on RAG pipeline answer quality "
          "across five QA benchmarks, finding consistent gains from re-ranking the top-20 "
-         "candidates returned by a bi-encoder retriever.",
+         "candidates returned by a bi-encoder retriever."),
          "Eve Ng", ["cs.CL", "cs.IR"], 0, 0, now - timedelta(days=2)),
         ("gh_9001", "github", "aidataboon/hybrid-rag-eval",
-         "Evaluation harness comparing vector-only, BM25-only, and hybrid RRF retrieval "
+         ("Evaluation harness comparing vector-only, BM25-only, and hybrid RRF retrieval "
          "on technical Q&A datasets, with cross-encoder re-ranking ablations and latency "
-         "breakdowns.",
+         "breakdowns."),
          "aidataboon", ["rag", "evaluation", "python"], 640, 28, now - timedelta(days=5)),
         ("hn_2002", "hackernews", "Ask HN: How are you running local embeddings in production?",
-         "Curious what people use for self-hosted sentence-transformers at scale; "
+         ("Curious what people use for self-hosted sentence-transformers at scale; "
          "batch size, GPU vs CPU, ONNX export, and quantization tradeoffs for "
-         "all-MiniLM-L6-v2 specifically.",
+         "all-MiniLM-L6-v2 specifically."),
          "bob", [], 96, 41, now - timedelta(hours=10)),
         ("arxiv_2406.02000", "arxiv", "Feature Stores for Real-Time ML: A Survey",
-         "We survey feature store architectures (Feast, Tecton, Hopsworks) covering "
+         ("We survey feature store architectures (Feast, Tecton, Hopsworks) covering "
          "online/offline consistency, materialization latency, and point-in-time-correct "
-         "training data generation.",
+         "training data generation."),
          "Ravi Patel", ["cs.LG", "cs.DC"], 0, 0, now - timedelta(days=8)),
     ]
     return [
@@ -1238,7 +1239,7 @@ class RAGPipeline:
         return result
 
     def trending(self, source: str | None = None, hours: int = 24) -> list[dict[str, Any]]:
-        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+        cutoff = datetime.now(UTC) - timedelta(hours=hours)
         items = []
         for doc in self.indexer.documents:
             published = _coerce_datetime(doc.published_at)
@@ -1248,16 +1249,16 @@ class RAGPipeline:
                 continue
             row = doc.to_dict()
             row["published_at"] = published.isoformat()
-            row["freshness_hours"] = round((datetime.now(timezone.utc) - published).total_seconds() / 3600, 1)
+            row["freshness_hours"] = round((datetime.now(UTC) - published).total_seconds() / 3600, 1)
             items.append(row)
         items.sort(key=lambda d: d["score"], reverse=True)
         return items
 
     # How each source's latest batch is ranked for the dashboard: HN by
     # points, arXiv newest first, trending GitHub repos by stars.
-    _DAILY_ORDER: dict[str, Any] = {
+    _DAILY_ORDER: ClassVar[dict[str, Any]] = {
         "hackernews": lambda d: d.score,
-        "arxiv": lambda d: _coerce_datetime(d.published_at) or datetime.min.replace(tzinfo=timezone.utc),
+        "arxiv": lambda d: _coerce_datetime(d.published_at) or datetime.min.replace(tzinfo=UTC),
         "github": lambda d: d.score,
     }
 
