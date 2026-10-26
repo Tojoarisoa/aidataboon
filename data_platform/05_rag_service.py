@@ -1253,6 +1253,48 @@ class RAGPipeline:
         items.sort(key=lambda d: d["score"], reverse=True)
         return items
 
+    # How each source's latest batch is ranked for the dashboard: HN by
+    # points, arXiv newest first, trending GitHub repos by stars.
+    _DAILY_ORDER: dict[str, Any] = {
+        "hackernews": lambda d: d.score,
+        "arxiv": lambda d: _coerce_datetime(d.published_at) or datetime.min.replace(tzinfo=timezone.utc),
+        "github": lambda d: d.score,
+    }
+
+    def daily(self, limit: int = 8) -> dict[str, Any]:
+        """The latest ingested batch per source, for the dashboard. Unlike
+        trending(), nothing is dropped for age: arXiv skips weekends, and a
+        GitHub repo's date is when it was created, not when it trended."""
+        sources: dict[str, Any] = {}
+        for source, order in self._DAILY_ORDER.items():
+            docs = sorted((d for d in self.indexer.documents if d.source == source), key=order, reverse=True)
+            dates = [dt for d in docs if (dt := _coerce_datetime(d.published_at)) is not None]
+            items = []
+            for d in docs[:limit]:
+                row = d.to_dict()
+                row.pop("content", None)
+                row["abstract"] = (row.get("abstract") or "")[:400]
+                published = _coerce_datetime(d.published_at)
+                row["published_at"] = published.isoformat() if published else None
+                items.append(row)
+            sources[source] = {
+                "count": len(docs),
+                # Repo creation dates say nothing about the batch, so no range for GitHub.
+                "newest": max(dates).isoformat() if dates and source != "github" else None,
+                "oldest": min(dates).isoformat() if dates and source != "github" else None,
+                "items": items,
+            }
+        # Repo topics, merged case-insensitively ("Python" and "python").
+        topic_counts: Counter[str] = Counter(
+            tag.lower() for d in self.indexer.documents if d.source == "github" for tag in d.tags
+        )
+        data_as_of = self.indexer.data_as_of
+        return {
+            "data_as_of": data_as_of.isoformat() if data_as_of else None,
+            "sources": sources,
+            "topics": [{"topic": t, "count": n} for t, n in topic_counts.most_common(12)],
+        }
+
     def topics(self) -> list[dict[str, Any]]:
         counts: Counter[str] = Counter()
         scores: dict[str, list[int]] = defaultdict(list)
@@ -1345,6 +1387,10 @@ if _FASTAPI_AVAILABLE:
         @app.get("/trending")
         async def trending(source: str | None = None, hours: int = 24) -> dict[str, Any]:
             return {"items": pipeline.trending(source=source, hours=hours)}
+
+        @app.get("/daily")
+        async def daily(limit: int = 8) -> dict[str, Any]:
+            return pipeline.daily(limit=max(1, min(limit, 50)))
 
         @app.get("/topics")
         async def topics() -> dict[str, Any]:
