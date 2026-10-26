@@ -408,6 +408,13 @@ def _detect_time_window(query: str) -> tuple[TimeWindow | None, str]:
     return TimeWindow(label=window[0], since=datetime.now(timezone.utc) - window[1]), cleaned or query
 
 
+def _newest_first(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Orders the chosen results by `published_at`, newest first, with
+    undated rows last. Stable, so equal dates keep their relevance order."""
+    epoch = datetime.min.replace(tzinfo=timezone.utc)
+    return sorted(rows, key=lambda r: _coerce_datetime(r.get("published_at")) or epoch, reverse=True)
+
+
 def _blend_recency(candidates: list[dict[str, Any]], rrf_k: int) -> list[dict[str, Any]]:
     """Reciprocal Rank Fusion of relevance order (as given) and recency
     order, so "latest X" favors newer items without dropping relevance."""
@@ -1101,7 +1108,9 @@ class RAGPipeline:
         reranked = self.reranker.rerank(retrieval_query, candidates, top_k=pool)
         if wants_recent:
             reranked = _blend_recency(reranked, self.config.rrf_k)
-        reranked = self.features.annotate(reranked[:limit])
+        # Relevance picks the top `limit`; they are returned newest first, and
+        # the answer cites them in that same order.
+        reranked = self.features.annotate(_newest_first(reranked[:limit]))
         answer = self.answers.compose(query, reranked)
 
         data_as_of = self.indexer.data_as_of
