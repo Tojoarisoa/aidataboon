@@ -188,13 +188,17 @@
 
     /* ── Dashboard ── */
     .daily-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; align-items: start; }
-    .col-head { display: flex; align-items: center; gap: 9px; margin: 0 0 2px; }
+    /* Column titles are section headings, well above the item titles in size. */
+    .col-head { display: flex; align-items: center; gap: 12px; margin: 2px 0 4px; }
+    .col-head .marker { width: 11px; height: 11px; }
     .col-head h2 {
-      margin: 0; flex: 1; color: var(--text);
-      font: 700 0.78rem var(--font-mono); text-transform: uppercase; letter-spacing: 0.08em;
+      margin: 0; flex: 1; min-width: 0; color: var(--src);
+      font: 800 clamp(1.35rem, 1.9vw, 1.75rem)/1.15 var(--font-ui); letter-spacing: -0.015em;
+      text-shadow: 0 0 18px color-mix(in srgb, var(--src) 35%, transparent);
     }
-    .col-count { font: 600 0.74rem var(--font-mono); color: var(--src); font-variant-numeric: tabular-nums; }
-    .col-sub { margin: 0 0 6px; }
+    :root[data-theme="light"] .col-head h2 { text-shadow: none; }
+    .col-count { font: 700 0.95rem var(--font-mono); color: var(--src); font-variant-numeric: tabular-nums; }
+    .col-sub { margin: 0 0 8px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
     .daily-list { margin: 0; padding: 0; list-style: none; }
     .daily-item { padding: 10px 0 11px; border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
     .daily-item:last-child { border-bottom: 0; }
@@ -287,7 +291,7 @@
       .tab {
         display: flex; align-items: center; gap: 8px; padding: 11px 1px 12px; margin-bottom: -1px;
         background: none; border: 0; border-bottom: 2px solid transparent; border-radius: 0;
-        color: var(--text-faint); font: 600 0.76rem var(--font-mono); text-transform: uppercase; letter-spacing: 0.08em;
+        color: var(--text-faint); font: 700 0.9rem var(--font-mono); text-transform: uppercase; letter-spacing: 0.08em;
       }
       .tab:hover { background: none; box-shadow: none; color: var(--text-muted); }
       .tab[aria-selected="true"] { color: var(--text); border-bottom-color: var(--src); box-shadow: 0 7px 10px -9px var(--src); }
@@ -303,7 +307,7 @@
       .theme-btn { order: 2; margin-left: auto; }
       .search { order: 3; flex-basis: 100%; }
       .tabs { gap: 14px; }
-      .tab { font-size: 0.7rem; letter-spacing: 0.04em; }
+      .tab { font-size: 0.8rem; letter-spacing: 0.04em; }
       .card { padding: 14px; }
     }
     @media (prefers-reduced-motion: reduce) {
