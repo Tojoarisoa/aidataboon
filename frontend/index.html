@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AIDataBoon — AI-Powered Data Infrastructure Search</title>
-  <meta name="description" content="Natural-language search over Hacker News, arXiv, and GitHub trending — powered by a RAG pipeline on a medallion lakehouse." />
+  <title>AI Data Boon — Today's Hacker News, arXiv and GitHub, searchable</title>
+  <meta name="description" content="Today's top Hacker News stories, new arXiv papers and trending GitHub repositories, with plain-English search over all of them." />
   <meta name="color-scheme" content="light dark" />
   <meta name="theme-color" content="#eef2f5" media="(prefers-color-scheme: light)" />
   <meta name="theme-color" content="#121922" media="(prefers-color-scheme: dark)" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://aidataboon.com/" />
-  <meta property="og:title" content="AIDataBoon" />
-  <meta property="og:description" content="Search recent Hacker News threads, arXiv papers and trending GitHub repositories in plain English." />
+  <meta property="og:title" content="AI Data Boon" />
+  <meta property="og:description" content="Today's top Hacker News stories, new arXiv papers and trending GitHub repositories, with plain-English search over all of them." />
   <!-- One dot per source (HN, arXiv, GitHub) under the search underline. -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2316202e'/%3E%3Crect x='6' y='19' width='20' height='3' rx='1.5' fill='%234fc3b5'/%3E%3Ccircle cx='9' cy='12' r='2.6' fill='%23f08a3e'/%3E%3Ccircle cx='16' cy='12' r='2.6' fill='%23e66a70'/%3E%3Ccircle cx='23' cy='12' r='2.6' fill='%23a094f5'/%3E%3C/svg%3E" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -23,7 +23,6 @@
       --ink: #16202e;
       --muted: #566173;
       --rule: #cfd7df;
-      --field: #ffffff;
       --accent: #0a7c72;
       --accent-ink: #ffffff;
       --hn: #ad4a08;
@@ -39,6 +38,8 @@
       --step-1: 1.25rem;
       --step-2: 1.563rem;
       --step-3: 1.953rem;
+
+      --gutter: 1.5rem;
     }
     @media (prefers-color-scheme: dark) {
       :root {
@@ -46,7 +47,6 @@
         --ink: #e3e9ef;
         --muted: #9aa6b5;
         --rule: #2b3644;
-        --field: #19222d;
         --accent: #4fc3b5;
         --accent-ink: #0c1a19;
         --hn: #f08a3e;
@@ -70,41 +70,32 @@
       display: flex;
       flex-direction: column;
       min-height: 100vh;
-      max-width: 44rem;
+      max-width: 84rem;
       margin: 0 auto;
-      padding: 2.5rem 1rem 2rem;
+      padding: 1.5rem var(--gutter) 1.5rem;
     }
     main { flex: 1; }
     a { color: inherit; }
     :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+    [hidden] { display: none !important; }
 
-    /* Masthead */
-    .masthead { margin-bottom: 2.25rem; }
+    /* Header: wordmark beside the question, which fills the row. */
+    .top {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      align-items: end;
+      gap: 0.5rem 2.5rem;
+      margin-bottom: 0.4rem;
+    }
     .wordmark {
       margin: 0;
-      font-size: var(--step-1);
+      padding-bottom: 0.55rem;
+      font-size: var(--step-2);
       font-weight: 700;
-      letter-spacing: -0.01em;
+      letter-spacing: -0.02em;
+      white-space: nowrap;
     }
-    .lede {
-      margin: 0.35rem 0 0;
-      max-width: 36rem;
-      color: var(--muted);
-    }
-    .index-note {
-      margin: 0.5rem 0 0;
-      color: var(--muted);
-      font-size: var(--step--1);
-    }
-    .index-note:empty { display: none; }
-
-    /* The question is the hero: set like a headline, typed into directly. */
-    .ask { margin-bottom: 1rem; }
-    .ask label {
-      display: block;
-      margin-bottom: 0.5rem;
-      font-weight: 500;
-    }
+    .wordmark a { text-decoration: none; }
     .ask-row {
       display: flex;
       align-items: flex-end;
@@ -137,83 +128,163 @@
       from { left: 0; }
       to { left: 70%; }
     }
-    /* A textarea so long questions wrap like a headline instead of
-       scrolling out of view; it grows with its content (see autosize()). */
+    /* A textarea so long questions wrap instead of scrolling out of view;
+       it grows with its content (see autosize()). */
     #query {
       display: block;
       width: 100%;
       border: 0;
       background: transparent;
       color: var(--ink);
-      font: 500 var(--step-3)/1.2 var(--sans);
-      letter-spacing: -0.02em;
-      padding: 0.25rem 0 0.35rem;
+      font: 500 var(--step-2)/1.25 var(--sans);
+      letter-spacing: -0.015em;
+      padding: 0.2rem 0 0.35rem;
       resize: none;
       overflow: hidden;
     }
-    #query::placeholder { color: var(--muted); opacity: 0.7; }
+    #query::placeholder { color: var(--muted); opacity: 0.75; }
     #query:focus { outline: none; }
     #submit-btn {
       flex: none;
-      margin-bottom: 0.45rem;
+      margin-bottom: 0.4rem;
       border: 0;
       border-radius: 999px;
       background: var(--accent);
       color: var(--accent-ink);
       font: 700 var(--step-0)/1 var(--sans);
-      padding: 0.75rem 1.25rem;
+      padding: 0.7rem 1.25rem;
       cursor: pointer;
     }
     #submit-btn:disabled { opacity: 0.6; cursor: progress; }
-
-    .examples {
-      margin: 0 0 2.25rem;
+    .index-note {
+      margin: 0 0 1.75rem;
       color: var(--muted);
       font-size: var(--step--1);
     }
-    .examples[hidden] { display: none; }
-    .examples p { margin: 0 0 0.3rem; }
-    .examples ul {
-      display: grid;
-      gap: 0.3rem;
-      justify-items: start;
-      margin: 0;
-      padding: 0;
-      list-style: none;
+    .index-note:empty::before { content: "\00a0"; }
+
+    .section-title {
+      margin: 0 0 0.9rem;
+      font-size: var(--step-1);
+      font-weight: 700;
+      letter-spacing: -0.01em;
     }
-    .examples button {
+
+    /* Dashboard: one column per source, separated by rules, not cards. */
+    .src-hackernews { --src: var(--hn); }
+    .src-arxiv { --src: var(--arxiv); }
+    .src-github { --src: var(--github); }
+
+    .tabs { display: none; }
+    .daily-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0 2rem;
+    }
+    .col { min-width: 0; border-top: 3px solid var(--src); padding-top: 0.75rem; }
+    .col-head { margin-bottom: 0.35rem; }
+    .col-head h3 {
+      margin: 0;
+      color: var(--src);
+      font-size: var(--step-0);
+      font-weight: 700;
+    }
+    .col-sub { margin: 0; color: var(--muted); font-size: var(--step--1); }
+    .daily-list { margin: 0; padding: 0; list-style: none; }
+    .daily-item {
+      padding: 0.65rem 0 0.7rem;
+      border-bottom: 1px solid var(--rule);
+      overflow-wrap: anywhere;
+    }
+    .daily-item .t {
+      display: block;
+      font-weight: 700;
+      line-height: 1.3;
+      text-decoration: none;
+    }
+    .daily-item .t:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+    .daily-item .d {
+      margin: 0.2rem 0 0;
+      color: var(--ink);
+      font: 400 var(--step--1)/1.45 var(--serif);
+      font-size: 0.85rem;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .more {
+      margin-top: 0.6rem;
       border: 0;
       padding: 0;
       background: none;
-      color: var(--ink);
-      font: inherit;
-      text-decoration: underline;
-      text-decoration-color: var(--rule);
-      text-underline-offset: 3px;
+      color: var(--accent);
+      font: 700 var(--step--1)/1.4 var(--sans);
       cursor: pointer;
     }
-    .examples button:hover { text-decoration-color: var(--accent); }
+    .more:hover { text-decoration: underline; }
+    .col-status { padding: 0.75rem 0; color: var(--muted); font-size: var(--step--1); }
+    .topics { margin-top: 1.4rem; }
+    .topics h4 { margin: 0 0 0.45rem; font-size: var(--step--1); font-weight: 700; }
 
-    /* Status line + per-source breakdown */
-    .summary {
+    /* Shared small pieces */
+    .meta {
       display: flex;
       flex-wrap: wrap;
-      justify-content: space-between;
-      gap: 0.25rem 1rem;
-      min-height: 1.5em;
-      padding-bottom: 0.75rem;
+      gap: 0.1rem 0.9rem;
+      margin: 0.3rem 0 0;
+      padding: 0;
+      list-style: none;
       color: var(--muted);
       font-size: var(--step--1);
     }
-    .examples[hidden] + .summary { margin-top: 1.5rem; }
+    .meta a { color: var(--muted); text-underline-offset: 3px; }
+    .meta a:hover { color: var(--ink); }
+    .chips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0; padding: 0; list-style: none; }
+    .chips button, .chips li.tag {
+      padding: 0.05rem 0.55rem;
+      border: 1px solid var(--rule);
+      border-radius: 999px;
+      background: none;
+      color: var(--muted);
+      font: 400 var(--step--1)/1.6 var(--sans);
+    }
+    .chips button { cursor: pointer; color: var(--ink); }
+    .chips button:hover { border-color: var(--accent); }
+
+    /* Search view: answer beside the results on wide screens. */
+    .back {
+      margin: 0 0 1rem;
+      border: 0;
+      padding: 0;
+      background: none;
+      color: var(--accent);
+      font: 700 var(--step--1)/1.4 var(--sans);
+      cursor: pointer;
+    }
+    .back:hover { text-decoration: underline; }
+    .results-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+      gap: 0 3rem;
+      align-items: start;
+    }
+    .results-side { position: sticky; top: 1rem; }
+    .summary {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.25rem 1rem;
+      margin-bottom: 0.9rem;
+      color: var(--muted);
+      font-size: var(--step--1);
+    }
     .summary.error { color: var(--arxiv); }
-    .breakdown { display: flex; gap: 0.9rem; margin: 0; padding: 0; list-style: none; }
+    .breakdown { display: flex; flex-wrap: wrap; gap: 0.9rem; margin: 0; padding: 0; list-style: none; }
     .breakdown li { display: flex; align-items: center; gap: 0.35rem; }
     .swatch { width: 0.6rem; height: 0.6rem; border-radius: 50%; background: var(--src); }
 
     #answer {
-      display: none;
-      max-width: 38rem;
       margin: 0 0 1.5rem;
       font: 400 var(--step-1)/1.6 var(--serif);
       white-space: pre-wrap;
@@ -228,30 +299,25 @@
     }
     #answer .cite:hover { text-decoration: underline; }
 
-    /* Results */
     #sources { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
     .result {
       position: relative;
-      padding: 1.1rem 0 1.2rem 1rem;
+      padding: 1rem 0 1.1rem 1rem;
       border-bottom: 1px solid var(--rule);
       overflow-wrap: anywhere;
+      scroll-margin-top: 1rem;
     }
     .result::before {
       content: "";
       position: absolute;
       left: 0;
-      top: 1.2rem;
-      bottom: 1.3rem;
+      top: 1.1rem;
+      bottom: 1.2rem;
       width: 3px;
       border-radius: 2px;
       background: var(--src);
     }
-    .result { scroll-margin-top: 1rem; }
     .result:target { background: color-mix(in srgb, var(--src) 8%, transparent); }
-    .src-hackernews { --src: var(--hn); }
-    .src-arxiv { --src: var(--arxiv); }
-    .src-github { --src: var(--github); }
-
     .result-source {
       margin: 0 0 0.15rem;
       color: var(--src);
@@ -261,7 +327,6 @@
     .result-num { margin-right: 0.4rem; color: var(--muted); font-weight: 500; }
     .result h2 {
       margin: 0;
-      max-width: 38rem;
       font-size: var(--step-1);
       font-weight: 700;
       line-height: 1.3;
@@ -271,7 +336,6 @@
     .result h2 a:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
     .abstract {
       margin: 0.4rem 0 0;
-      max-width: 38rem;
       font: 400 var(--step-0)/1.6 var(--serif);
       display: -webkit-box;
       -webkit-line-clamp: 3;
@@ -279,42 +343,56 @@
       -webkit-box-orient: vertical;
       overflow: hidden;
     }
-    .meta {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.15rem 1rem;
-      margin: 0.5rem 0 0;
-      padding: 0;
-      list-style: none;
-      color: var(--muted);
-      font-size: var(--step--1);
-    }
-    .meta a { color: var(--muted); text-underline-offset: 3px; }
-    .meta a:hover { color: var(--ink); }
-    .tags { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.55rem 0 0; padding: 0; list-style: none; }
-    .tags li {
-      padding: 0.05rem 0.5rem;
-      border: 1px solid var(--rule);
-      border-radius: 999px;
-      color: var(--muted);
-      font-size: var(--step--1);
-    }
-
-    .empty { padding: 1.5rem 0; color: var(--muted); }
+    .result .chips { margin-top: 0.55rem; }
+    .empty { padding: 1.25rem 0; color: var(--muted); }
 
     footer {
-      padding-top: 3rem;
+      padding-top: 2.5rem;
       color: var(--muted);
       font-size: var(--step--1);
     }
 
-    @media (max-width: 34rem) {
-      .wrap { padding-top: 1.75rem; }
-      #query { font-size: var(--step-2); }
-      .ask-row { flex-direction: column; align-items: stretch; gap: 0.75rem; }
-      #submit-btn { margin-bottom: 0; padding: 0.85rem 1.25rem; }
-      .summary { flex-direction: column; }
+    /* Below 960px the three sources become tabs: one list at a time. */
+    @media (max-width: 60rem) {
+      .tabs {
+        display: flex;
+        gap: 0.25rem;
+        margin: 0 0 0.75rem;
+        border-bottom: 1px solid var(--rule);
+      }
+      .tabs button {
+        flex: 1;
+        margin-bottom: -1px;
+        border: 0;
+        border-bottom: 3px solid transparent;
+        padding: 0.55rem 0.25rem;
+        background: none;
+        color: var(--muted);
+        font: 700 var(--step--1)/1.3 var(--sans);
+        cursor: pointer;
+      }
+      .tabs button[aria-selected="true"] { color: var(--src); border-bottom-color: var(--src); }
+      .tabs .count { display: block; font-weight: 400; }
+      #query { font-size: var(--step-1); }
+      #submit-btn { margin-bottom: 0.3rem; }
+      .daily-grid { display: block; }
+      .col { border-top: 0; padding-top: 0; }
+      .col:not(.active) { display: none; }
+      .col-head h3 { display: none; }
+      .results-grid { display: block; }
+      .results-side { position: static; }
+    }
+    @media (max-width: 38rem) {
+      :root { --gutter: 1rem; }
+      .wrap { padding-top: 1.1rem; }
+      .top { grid-template-columns: minmax(0, 1fr); gap: 0.6rem; }
+      .wordmark { padding-bottom: 0; font-size: var(--step-1); }
+      .ask-row { flex-direction: column; align-items: stretch; gap: 0.6rem; }
+      #query { font-size: var(--step-1); }
+      #submit-btn { margin-bottom: 0; padding: 0.8rem 1.25rem; }
+      .index-note { margin-bottom: 1.25rem; }
       .abstract { -webkit-line-clamp: 2; line-clamp: 2; }
+      #answer { font-size: 1.1rem; }
     }
     @media (prefers-reduced-motion: reduce) {
       * { scroll-behavior: auto !important; transition: none !important; }
@@ -325,24 +403,16 @@
 </head>
 <body>
   <div class="wrap">
-    <header class="masthead">
-      <p class="wordmark">AIDataBoon</p>
-      <p class="lede">
-        Search recent Hacker News threads, arXiv papers and trending GitHub
-        repositories in plain English.
-      </p>
-      <p id="index-note" class="index-note"></p>
-    </header>
-
-    <main>
-      <form id="search-form" class="ask" role="search">
-        <label for="query">What do you want to find?</label>
+    <header>
+      <form id="search-form" class="top" role="search">
+        <p class="wordmark"><a href="/" id="home-link">AI Data Boon</a></p>
         <div class="ask-row">
           <div class="field">
             <textarea
               id="query"
               rows="1"
-              placeholder="Papers about LLM fine-tuning"
+              placeholder="Search Hacker News, arXiv and GitHub"
+              aria-label="Search Hacker News, arXiv and GitHub"
               autocomplete="off"
               enterkeyhint="search"
               maxlength="500"
@@ -352,19 +422,52 @@
           <button type="submit" id="submit-btn">Search</button>
         </div>
       </form>
+      <p id="index-note" class="index-note"></p>
+    </header>
 
-      <div class="examples" id="examples">
-        <p>Try one of these:</p>
-        <ul>
-          <li><button type="button" data-q="Papers about LLM fine-tuning">Papers about LLM fine-tuning</button></li>
-          <li><button type="button" data-q="What is Hacker News saying this week?">What is Hacker News saying this week?</button></li>
-          <li><button type="button" data-q="Top 5 trending repos for AI agents">Top 5 trending repos for AI agents</button></li>
-        </ul>
-      </div>
+    <main>
+      <!-- Default view: the latest daily batch per source. -->
+      <section id="dashboard" aria-labelledby="today-title">
+        <h2 class="section-title" id="today-title">Today's results</h2>
+        <div class="tabs" role="tablist" aria-label="Sources">
+          <button type="button" role="tab" class="src-hackernews" data-src="hackernews" aria-selected="true" aria-controls="col-hackernews" id="tab-hackernews">Hacker News<span class="count"></span></button>
+          <button type="button" role="tab" class="src-arxiv" data-src="arxiv" aria-selected="false" aria-controls="col-arxiv" id="tab-arxiv" tabindex="-1">arXiv<span class="count"></span></button>
+          <button type="button" role="tab" class="src-github" data-src="github" aria-selected="false" aria-controls="col-github" id="tab-github" tabindex="-1">GitHub<span class="count"></span></button>
+        </div>
+        <div class="daily-grid">
+          <section class="col src-hackernews active" id="col-hackernews" role="tabpanel" aria-labelledby="tab-hackernews">
+            <div class="col-head"><h3>Hacker News</h3><p class="col-sub"></p></div>
+            <ul class="daily-list"></ul>
+            <p class="col-status">Loading…</p>
+          </section>
+          <section class="col src-arxiv" id="col-arxiv" role="tabpanel" aria-labelledby="tab-arxiv">
+            <div class="col-head"><h3>New on arXiv</h3><p class="col-sub"></p></div>
+            <ul class="daily-list"></ul>
+            <p class="col-status">Loading…</p>
+          </section>
+          <section class="col src-github" id="col-github" role="tabpanel" aria-labelledby="tab-github">
+            <div class="col-head"><h3>Trending on GitHub</h3><p class="col-sub"></p></div>
+            <ul class="daily-list"></ul>
+            <p class="col-status">Loading…</p>
+            <div class="topics" id="topics" hidden>
+              <h4>Common topics</h4>
+              <ul class="chips"></ul>
+            </div>
+          </section>
+        </div>
+      </section>
 
-      <div id="status" class="summary" role="status" aria-live="polite"></div>
-      <div id="answer"></div>
-      <ol id="sources" hidden></ol>
+      <!-- Search view -->
+      <section id="search-view" hidden aria-label="Search results">
+        <button type="button" class="back" id="back-btn">Back to today's results</button>
+        <div class="results-grid">
+          <div class="results-side">
+            <div id="status" class="summary" role="status" aria-live="polite"></div>
+            <div id="answer" hidden></div>
+          </div>
+          <ol id="sources" hidden></ol>
+        </div>
+      </section>
     </main>
 
     <footer>&copy; 2026 BoonCore</footer>
@@ -372,6 +475,8 @@
 
   <script>
     const API_BASE = "https://api.aidataboon.com/v1";
+    const DAILY_LIMIT = 25; // fetched per source
+    const DAILY_SHOWN = 8;  // shown before "Show more"
 
     const SOURCES = {
       hackernews: "Hacker News",
@@ -385,11 +490,229 @@
     const answerEl = document.getElementById("answer");
     const sourcesEl = document.getElementById("sources");
     const submitBtn = document.getElementById("submit-btn");
-    const examplesEl = document.getElementById("examples");
     const indexNoteEl = document.getElementById("index-note");
+    const dashboardEl = document.getElementById("dashboard");
+    const searchViewEl = document.getElementById("search-view");
 
     const numberFmt = new Intl.NumberFormat("en");
+    const compactFmt = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 });
     const dateFmt = new Intl.DateTimeFormat("en", { year: "numeric", month: "short", day: "numeric" });
+    const shortDateFmt = new Intl.DateTimeFormat("en", { month: "short", day: "numeric" });
+
+    // ── Small helpers ──────────────────────────────────────────────────────
+
+    function el(tag, props = {}, children = []) {
+      const node = document.createElement(tag);
+      Object.assign(node, props);
+      for (const child of [].concat(children)) {
+        if (child) node.append(child);
+      }
+      return node;
+    }
+
+    function toInt(v) {
+      const n = parseInt(v, 10);
+      return Number.isFinite(n) ? n : 0;
+    }
+
+    function plural(n, one, many) {
+      return `${numberFmt.format(n)} ${n === 1 ? one : many}`;
+    }
+
+    function formatDate(iso) {
+      const d = new Date(iso);
+      return Number.isNaN(d.getTime()) ? "" : dateFmt.format(d);
+    }
+
+    function formatShortDate(iso) {
+      const d = new Date(iso);
+      return Number.isNaN(d.getTime()) ? "" : shortDateFmt.format(d);
+    }
+
+    function formatRange(oldest, newest) {
+      const a = formatShortDate(oldest);
+      const b = formatShortDate(newest);
+      return a && b && a !== b ? `${a} to ${b}` : b;
+    }
+
+    // Abstracts arrive HTML-escaped and, for HN, with inline markup.
+    // DOMParser never runs scripts, so this only extracts the text.
+    function plainText(html) {
+      if (!html) return "";
+      // Block-level tags become spaces so paragraphs don't run together.
+      const spaced = String(html).replace(/<\/?(?:p|br|div|li|pre)\b[^>]*>/gi, " ");
+      const doc = new DOMParser().parseFromString(spaced, "text/html");
+      return (doc.body.textContent || "").replace(/\s+/g, " ").trim();
+    }
+
+    // Tags come back as a list, or (from /search) as a Python list repr: "['a2a', 'agents']".
+    function parseTags(raw) {
+      if (Array.isArray(raw)) return raw;
+      return [...String(raw || "").matchAll(/'([^']+)'/g)].map((m) => m[1]);
+    }
+
+    function formatAuthors(raw) {
+      const names = String(raw || "").split(",").map((s) => s.trim()).filter(Boolean);
+      if (names.length <= 3) return names.join(", ");
+      return `${names.slice(0, 3).join(", ")} et al.`;
+    }
+
+    function hnDiscussionUrl(src) {
+      const hnId = String(src.id || "").replace(/^hn_/, "");
+      return hnId ? `https://news.ycombinator.com/item?id=${encodeURIComponent(hnId)}` : "";
+    }
+
+    // Retries Cloudflare's 524 (the API waking from scale-to-zero) before
+    // giving up, so a cold start doesn't surface as a raw error.
+    async function fetchWithWake(url, options, onWaiting) {
+      const maxAttempts = 3;
+      let res;
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        res = await fetch(url, options);
+        if (res.status === 524 && attempt < maxAttempts) {
+          if (onWaiting) onWaiting(5 * attempt);
+          await new Promise((r) => setTimeout(r, 5000 * attempt));
+          continue;
+        }
+        break;
+      }
+      if (!res.ok) throw new Error(`the API returned ${res.status}`);
+      return res.json();
+    }
+
+    function describeError(err) {
+      // fetch() rejects with a TypeError when the request never got a response.
+      return err instanceof TypeError ? "couldn't reach the search service" : err.message;
+    }
+
+    // What matters differs per source: points and discussion for HN,
+    // stars and forks for GitHub, authors and date for arXiv.
+    function metaItems(src, { compact = false } = {}) {
+      const items = [];
+      const score = toInt(src.score);
+      const comments = toInt(src.num_comments);
+      if (src.source === "hackernews") {
+        if (score) items.push(plural(score, "point", "points"));
+        const url = hnDiscussionUrl(src);
+        if (url) {
+          items.push(el("a", { href: url, target: "_blank", rel: "noopener", textContent: plural(comments, "comment", "comments") }));
+        }
+        if (!compact && src.author) items.push(`by ${src.author}`);
+        if (src.published_at) items.push(compact ? formatShortDate(src.published_at) : formatDate(src.published_at));
+      } else if (src.source === "github") {
+        if (score) items.push(compact ? `${compactFmt.format(score)} stars` : plural(score, "star", "stars"));
+        if (comments && !compact) items.push(plural(comments, "fork", "forks"));
+        // A repo's date is its creation date.
+        if (src.published_at && !compact) items.push(`Created ${formatDate(src.published_at)}`);
+      } else {
+        if (src.author) items.push(formatAuthors(src.author));
+        if (src.published_at && !compact) items.push(formatDate(src.published_at));
+      }
+      return items.filter(Boolean);
+    }
+
+    // ── Dashboard ──────────────────────────────────────────────────────────
+
+    function dailyItem(src) {
+      const li = el("li", { className: "daily-item" });
+      li.append(el("a", { className: "t", href: src.url || "#", target: "_blank", rel: "noopener", textContent: src.title || "Untitled" }));
+      // HN self-posts and arXiv abstracts are long; repo descriptions are the point.
+      const desc = plainText(src.abstract);
+      if (desc && src.source !== "hackernews") li.append(el("p", { className: "d", textContent: desc }));
+      const meta = metaItems(src, { compact: true });
+      if (meta.length) li.append(el("ul", { className: "meta" }, meta.map((m) => el("li", {}, m))));
+      return li;
+    }
+
+    function colSubtitle(key, info) {
+      const n = info.count;
+      if (key === "hackernews") return `${plural(n, "story", "stories")} by points${info.newest ? `, ${formatRange(info.oldest, info.newest)}` : ""}`;
+      if (key === "arxiv") return `${plural(n, "paper", "papers")}, newest first${info.newest ? `, ${formatRange(info.oldest, info.newest)}` : ""}`;
+      return `${plural(n, "repo", "repos")} by stars`;
+    }
+
+    function renderColumn(key, info) {
+      const col = document.getElementById(`col-${key}`);
+      const list = col.querySelector(".daily-list");
+      const status = col.querySelector(".col-status");
+      col.querySelector(".col-sub").textContent = colSubtitle(key, info);
+      document.querySelector(`#tab-${key} .count`).textContent = numberFmt.format(info.count);
+      list.replaceChildren(...info.items.map(dailyItem));
+      if (!info.items.length) {
+        status.textContent = "Nothing in today's batch.";
+        return;
+      }
+      status.hidden = true;
+      const hidden = [...list.children].slice(DAILY_SHOWN);
+      if (hidden.length) {
+        hidden.forEach((li) => (li.hidden = true));
+        const more = el("button", { type: "button", className: "more", textContent: `Show ${hidden.length} more` });
+        more.addEventListener("click", () => {
+          hidden.forEach((li) => (li.hidden = false));
+          more.remove();
+          if (info.count > info.items.length) {
+            status.textContent = `Top ${info.items.length} of ${numberFmt.format(info.count)} shown. Search to find the rest.`;
+            status.hidden = false;
+          }
+        });
+        list.after(more);
+      }
+    }
+
+    function renderTopics(topics) {
+      if (!topics || !topics.length) return;
+      const box = document.getElementById("topics");
+      box.querySelector(".chips").replaceChildren(...topics.map((t) => {
+        const b = el("button", { type: "button", textContent: t.topic, title: `Search for ${t.topic}` });
+        b.addEventListener("click", () => runSearch(`Trending repos about ${t.topic}`));
+        return el("li", {}, b);
+      }));
+      box.hidden = false;
+    }
+
+    async function loadDaily() {
+      try {
+        const data = await fetchWithWake(`${API_BASE}/daily?limit=${DAILY_LIMIT}`, {}, (secs) => {
+          for (const s of document.querySelectorAll(".col-status")) {
+            s.textContent = `The service is starting up. Trying again in ${secs} seconds…`;
+          }
+        });
+        if (data.data_as_of) indexNoteEl.textContent = `Refreshed daily. Newest item from ${formatDate(data.data_as_of)}.`;
+        for (const key of Object.keys(SOURCES)) {
+          if (data.sources && data.sources[key]) renderColumn(key, data.sources[key]);
+        }
+        renderTopics(data.topics);
+      } catch (err) {
+        for (const s of document.querySelectorAll(".col-status")) {
+          s.textContent = `Today's results didn't load: ${describeError(err)}. Reload the page to try again.`;
+        }
+      }
+    }
+
+    // Tabs (below 960px): one source at a time, arrow keys move between them.
+    const tabs = [...document.querySelectorAll('[role="tab"]')];
+    function selectTab(tab) {
+      for (const t of tabs) {
+        const on = t === tab;
+        t.setAttribute("aria-selected", String(on));
+        t.tabIndex = on ? 0 : -1;
+        document.getElementById(t.getAttribute("aria-controls")).classList.toggle("active", on);
+      }
+    }
+    for (const tab of tabs) {
+      tab.addEventListener("click", () => selectTab(tab));
+      tab.addEventListener("keydown", (e) => {
+        const i = tabs.indexOf(tab);
+        const next = e.key === "ArrowRight" ? tabs[(i + 1) % tabs.length] : e.key === "ArrowLeft" ? tabs[(i + tabs.length - 1) % tabs.length] : null;
+        if (next) {
+          e.preventDefault();
+          selectTab(next);
+          next.focus();
+        }
+      });
+    }
+
+    // ── Search ─────────────────────────────────────────────────────────────
 
     // Lets phrases like "top 3", "first 10", or "5 papers" control how
     // many results come back, instead of always requesting 5.
@@ -409,89 +732,14 @@
       return 5;
     }
 
-    // Abstracts arrive HTML-escaped and, for HN, with inline markup.
-    // DOMParser never runs scripts, so this only extracts the text.
-    function plainText(html) {
-      if (!html) return "";
-      // Block-level tags become spaces so paragraphs don't run together.
-      const spaced = String(html).replace(/<\/?(?:p|br|div|li|pre)\b[^>]*>/gi, " ");
-      const doc = new DOMParser().parseFromString(spaced, "text/html");
-      return (doc.body.textContent || "").replace(/\s+/g, " ").trim();
-    }
-
-    // Tags come back as a Python list repr: "['a2a', 'agents']".
-    function parseTags(raw) {
-      if (Array.isArray(raw)) return raw;
-      return [...String(raw || "").matchAll(/'([^']+)'/g)].map((m) => m[1]);
-    }
-
-    function toInt(v) {
-      const n = parseInt(v, 10);
-      return Number.isFinite(n) ? n : 0;
-    }
-
-    function plural(n, one, many) {
-      return `${numberFmt.format(n)} ${n === 1 ? one : many}`;
-    }
-
-    function formatAuthors(raw) {
-      const names = String(raw || "").split(",").map((s) => s.trim()).filter(Boolean);
-      if (names.length <= 3) return names.join(", ");
-      return `${names.slice(0, 3).join(", ")} et al.`;
-    }
-
-    function formatDate(iso) {
-      const d = new Date(iso);
-      return Number.isNaN(d.getTime()) ? "" : dateFmt.format(d);
-    }
-
-    // The API picks the best matches; the page lists them newest first.
-    // Undated results go last, and ties keep their relevance order.
+    // The API returns results newest first; this keeps that order if an
+    // older API version answers. Undated results go last.
     function newestFirst(sources) {
       const time = (s) => {
         const t = new Date(s.published_at).getTime();
         return Number.isNaN(t) ? -Infinity : t;
       };
       return [...sources].sort((a, b) => time(b) - time(a));
-    }
-
-    function el(tag, props = {}, children = []) {
-      const node = document.createElement(tag);
-      Object.assign(node, props);
-      for (const child of [].concat(children)) {
-        if (child) node.append(child);
-      }
-      return node;
-    }
-
-    // What matters differs per source: points and discussion for HN,
-    // stars and forks for GitHub, authors and date for arXiv.
-    function metaItems(src) {
-      const items = [];
-      const score = toInt(src.score);
-      const comments = toInt(src.num_comments);
-      if (src.source === "hackernews") {
-        if (score) items.push(plural(score, "point", "points"));
-        const hnId = String(src.id || "").replace(/^hn_/, "");
-        const discussion = el("a", {
-          href: `https://news.ycombinator.com/item?id=${encodeURIComponent(hnId)}`,
-          target: "_blank",
-          rel: "noopener",
-          textContent: plural(comments, "comment", "comments"),
-        });
-        if (hnId) items.push(discussion);
-        if (src.author) items.push(`by ${src.author}`);
-        if (src.published_at) items.push(formatDate(src.published_at));
-      } else if (src.source === "github") {
-        if (score) items.push(plural(score, "star", "stars"));
-        if (comments) items.push(plural(comments, "fork", "forks"));
-        // A repo's date is its creation date; shown so the date order is visible.
-        if (src.published_at) items.push(`Created ${formatDate(src.published_at)}`);
-      } else {
-        if (src.author) items.push(formatAuthors(src.author));
-        if (src.published_at) items.push(formatDate(src.published_at));
-      }
-      return items.filter(Boolean);
     }
 
     // `n` is the result's citation number, as used in the answer's [n].
@@ -502,12 +750,7 @@
       const num = el("span", { className: "result-num", textContent: `[${n}]` });
       li.append(el("p", { className: "result-source" }, [num, SOURCES[src.source] || src.source || "Source"]));
 
-      const title = el("a", {
-        href: src.url || "#",
-        target: "_blank",
-        rel: "noopener",
-        textContent: src.title || src.id || "Untitled",
-      });
+      const title = el("a", { href: src.url || "#", target: "_blank", rel: "noopener", textContent: src.title || src.id || "Untitled" });
       li.append(el("h2", {}, title));
 
       const abstract = plainText(src.abstract || src.content);
@@ -522,12 +765,38 @@
 
       const tags = src.source === "github" ? parseTags(src.tags).slice(0, 5) : [];
       if (tags.length) {
-        li.append(el("ul", { className: "tags", ariaLabel: "Topics" }, tags.map((t) => el("li", { textContent: t }))));
+        li.append(el("ul", { className: "chips", ariaLabel: "Topics" }, tags.map((t) => el("li", { className: "tag", textContent: t }))));
       }
       return li;
     }
 
-    // The index is refreshed in batches, so say how current it is.
+    // Builds the answer as text nodes, turning [n] citations that match a
+    // result into links to it. The answer text is never parsed as HTML.
+    function renderAnswer(answer, count) {
+      const parts = [];
+      let last = 0;
+      for (const m of answer.matchAll(/\[(\d+)\]/g)) {
+        const n = Number(m[1]);
+        if (n < 1 || n > count) continue;
+        parts.push(answer.slice(last, m.index));
+        parts.push(el("a", { className: "cite", href: `#result-${n}`, textContent: `[${n}]` }));
+        last = m.index + m[0].length;
+      }
+      parts.push(answer.slice(last));
+      answerEl.replaceChildren(...parts.filter((p) => p !== ""));
+    }
+
+    // Without an LLM configured, the API returns an extractive placeholder
+    // that only repeats the abstracts shown below, so it is not displayed.
+    function isPlaceholderAnswer(answer) {
+      return /^Based on \d+ matching document/.test(answer || "");
+    }
+
+    function setStatus(text, isError = false) {
+      statusEl.className = isError ? "summary error" : "summary";
+      statusEl.textContent = text;
+    }
+
     function freshnessNote(data) {
       const asOf = data.data_as_of ? formatDate(data.data_as_of) : "";
       return asOf ? `Newest data: ${asOf}` : "";
@@ -553,79 +822,33 @@
       statusEl.append(breakdown);
     }
 
-    function setStatus(text, isError = false) {
-      statusEl.className = isError ? "summary error" : "summary";
-      statusEl.textContent = text;
-    }
-
-    // Builds the answer as text nodes, turning [n] citations that match a
-    // result into links to it. The answer text is never parsed as HTML.
-    function renderAnswer(answer, count) {
-      const parts = [];
-      let last = 0;
-      for (const m of answer.matchAll(/\[(\d+)\]/g)) {
-        const n = Number(m[1]);
-        if (n < 1 || n > count) continue;
-        parts.push(answer.slice(last, m.index));
-        parts.push(el("a", { className: "cite", href: `#result-${n}`, textContent: `[${n}]` }));
-        last = m.index + m[0].length;
-      }
-      parts.push(answer.slice(last));
-      answerEl.replaceChildren(...parts.filter((p) => p !== ""));
-    }
-
-    // Without an LLM configured, the API returns an extractive placeholder
-    // that only repeats the abstracts shown below, so it is not displayed.
-    function isPlaceholderAnswer(answer) {
-      return /^Based on \d+ matching document/.test(answer || "");
+    function showView(view) {
+      const searching = view === "search";
+      dashboardEl.hidden = searching;
+      searchViewEl.hidden = !searching;
     }
 
     async function search(query) {
+      showView("search");
       submitBtn.disabled = true;
       form.classList.add("busy");
-      examplesEl.hidden = true;
       setStatus("Searching…");
-      answerEl.style.display = "none";
-      answerEl.textContent = "";
+      answerEl.hidden = true;
+      answerEl.replaceChildren();
       sourcesEl.replaceChildren();
       sourcesEl.hidden = true;
 
-      const url = new URL(window.location.href);
-      url.searchParams.set("q", query);
-      history.replaceState(null, "", url);
-
       try {
-        const limit = extractLimit(query);
-        const maxAttempts = 3;
-        let res;
-        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-          res = await fetch(`${API_BASE}/search`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ query, limit }),
-          });
-
-          // 524 = Cloudflare timeout, typically the API waking from an
-          // idle scale-to-zero state. Retry after a short wait instead
-          // of surfacing a raw error on the first try.
-          if (res.status === 524 && attempt < maxAttempts) {
-            setStatus(`The search service is starting up. Trying again in ${5 * attempt} seconds…`);
-            await new Promise((r) => setTimeout(r, 5000 * attempt));
-            continue;
-          }
-          break;
-        }
-
-        if (!res.ok) {
-          throw new Error(`the API returned ${res.status}`);
-        }
-
-        const data = await res.json();
+        const data = await fetchWithWake(`${API_BASE}/search`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query, limit: extractLimit(query) }),
+        }, (secs) => setStatus(`The search service is starting up. Trying again in ${secs} seconds…`));
         const sources = data.sources || [];
 
         if (sources.length && data.answer && !isPlaceholderAnswer(data.answer)) {
           renderAnswer(data.answer, sources.length);
-          answerEl.style.display = "block";
+          answerEl.hidden = false;
         }
 
         if (!sources.length) {
@@ -641,13 +864,31 @@
         }
         sourcesEl.hidden = false;
       } catch (err) {
-        // fetch() rejects with a TypeError when the request never got a response.
-        const reason = err instanceof TypeError ? "couldn't reach the search service" : err.message;
-        setStatus(`Search failed: ${reason}. Try again in a minute.`, true);
+        setStatus(`Search failed: ${describeError(err)}. Try again in a minute.`, true);
       } finally {
         submitBtn.disabled = false;
         form.classList.remove("busy");
       }
+    }
+
+    // Each search gets its own history entry, so Back returns to the dashboard.
+    function runSearch(query) {
+      setQuery(query);
+      const url = new URL(window.location.href);
+      if (url.searchParams.get("q") !== query) {
+        url.searchParams.set("q", query);
+        history.pushState({ q: query }, "", url);
+      }
+      search(query);
+      window.scrollTo({ top: 0 });
+    }
+
+    function goHome() {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("q");
+      history.pushState({}, "", url);
+      setQuery("");
+      showView("dashboard");
     }
 
     // The question box is a textarea so long questions wrap; it grows to
@@ -669,7 +910,6 @@
         input.setSelectionRange(end, end);
       }
       autosize();
-      if (!input.value.trim()) examplesEl.hidden = false;
     });
 
     // Enter searches, as in a single-line field.
@@ -686,25 +926,25 @@
     form.addEventListener("submit", (e) => {
       e.preventDefault();
       const query = input.value.trim();
-      if (query) search(query);
+      if (query) runSearch(query);
     });
 
-    for (const btn of document.querySelectorAll(".examples button")) {
-      btn.addEventListener("click", () => {
-        setQuery(btn.dataset.q);
-        search(btn.dataset.q);
-      });
-    }
+    document.getElementById("back-btn").addEventListener("click", goHome);
+    document.getElementById("home-link").addEventListener("click", (e) => {
+      e.preventDefault();
+      goHome();
+    });
 
-    // Say how current the index is before anyone searches. This also wakes
-    // the API from its idle state, so the first search is faster.
-    fetch(`${API_BASE}/health`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((health) => {
-        const asOf = health && health.data_as_of ? formatDate(health.data_as_of) : "";
-        if (asOf) indexNoteEl.textContent = `Refreshed daily. Newest from ${asOf}.`;
-      })
-      .catch(() => {});
+    window.addEventListener("popstate", () => {
+      const q = new URLSearchParams(window.location.search).get("q");
+      if (q) {
+        setQuery(q);
+        search(q);
+      } else {
+        setQuery("");
+        showView("dashboard");
+      }
+    });
 
     // "/" jumps to the search box from anywhere on the page.
     document.addEventListener("keydown", (e) => {
@@ -715,7 +955,9 @@
       }
     });
 
-    // Shared links (?q=...) run their search on load.
+    // The dashboard always loads (it also wakes the API); a shared ?q= link
+    // opens straight on its search.
+    loadDaily();
     const initial = new URLSearchParams(window.location.search).get("q");
     if (initial) {
       setQuery(initial);
