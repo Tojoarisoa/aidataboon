@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 600" width="1100" height="600" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" role="img" aria-labelledby="title desc">
+  <!-- Icons: Lucide v1.53.0 (https://lucide.dev), ISC License, Copyright (c) 2026 Lucide Icons and Contributors.
+       Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is
+       hereby granted, provided that the above copyright notice and this permission notice appear in all copies. -->
+  <title id="title">AI Data Boon architecture</title>
+  <desc id="desc">Hacker News, arXiv and GitHub trending flow through daily ingestion into a Bronze, Silver and Gold lakehouse, then a hybrid search API that serves the web dashboard. An ML platform reads lakehouse features, agents query the search API, and observability and infrastructure span the stack.</desc>
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#5b6b82"/></marker></defs>
+  <rect width="1100" height="600" rx="14" fill="#0d1117"/>
+  <text x="20" y="40" font-size="18" font-weight="700" fill="#e6edf3" text-anchor="start">AI Data Boon: architecture</text>
+  <rect x="20" y="70" width="180" height="182" rx="10" fill="#161b26" stroke="#2b3547"/>
+  <text x="38" y="108" font-size="15" font-weight="700" fill="#e6edf3" text-anchor="start">Sources</text>
+  <g transform="translate(38,130) scale(0.8333333333333334)" fill="none" stroke="#fb923c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18h-5" /> <path d="M18 14h-8" /> <path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-4 0v-9a2 2 0 0 1 2-2h2" /> <rect width="8" height="4" x="10" y="6" rx="1" /></g>
+  <text x="68" y="145" font-size="13" font-weight="600" fill="#e6edf3" text-anchor="start">Hacker News</text>
+  <g transform="translate(38,166) scale(0.8333333333333334)" fill="none" stroke="#ff6b88" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 12h-5" /> <path d="M15 8h-5" /> <path d="M19 17V5a2 2 0 0 0-2-2H4" /> <path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3" /></g>
+  <text x="68" y="181" font-size="13" font-weight="600" fill="#e6edf3" text-anchor="start">arXiv</text>
+  <g transform="translate(38,202) scale(0.8333333333333334)" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6a9 9 0 0 0-9 9V3" /> <circle cx="18" cy="6" r="3" /> <circle cx="6" cy="18" r="3" /></g>
+  <text x="68" y="217" font-size="13" font-weight="600" fill="#e6edf3" text-anchor="start">GitHub trending</text>
+  <rect x="240" y="70" width="180" height="182" rx="10" fill="#161b26" stroke="#2b3547"/>
+  <circle cx="270" cy="102" r="18" fill="#12303a"/>
+  <g transform="translate(259,91) scale(0.9166666666666666)" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="8" x="3" y="3" rx="2" /> <path d="M7 11v4a2 2 0 0 0 2 2h4" /> <rect width="8" height="8" x="13" y="13" rx="2" /></g>
+  <text x="298" y="108" font-size="15" font-weight="700" fill="#e6edf3" text-anchor="start">Ingestion</text>
+  <text x="258" y="144" font-size="12.5" font-weight="400" fill="#9aa6b8" text-anchor="start">Airflow DAGs, daily</text>
+  <text x="258" y="168" font-size="12.5" font-weight="400" fill="#9aa6b8" text-anchor="start">Kafka streaming</text>
+  <text x="258" y="192" font-size="12.5" font-weight="400" fill="#9aa6b8" text-anchor="start">Data quality checks</text>
+  <text x="258" y="216" font-size="12.5" font-weight="400" fill="#9aa6b8" text-anchor="start">Dead-letter queue</text>
+  <rect x="460" y="70" width="180" height="182" rx="10" fill="#161b26" stroke="#2b3547"/>
+  <circle cx="490" cy="102" r="18" fill="#12303a"/>
+  <g transform="translate(479,91) scale(0.9166666666666666)" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z" /> <path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12" /> <path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17" /></g>
+  <text x="518" y="108" font-size="15" font-weight="700" fill="#e6edf3" text-anchor="start">Lakehouse</text>
+  <text x="478" y="144" font-size="12.5" font-weight="400" fill="#9aa6b8" text-anchor="start">Bronze, Silver, Gold</text>
+  <text x="478" y="168" font-size="12.5" font-weight="400" fill="#9aa6b8" text-anchor="start">DuckDB + Delta Lake</text>
+  <text x="478" y="192" font-size="12.5" font-weight="400" fill="#9aa6b8" text-anchor="start">S3-compatible storage</text>
+  <text x="478" y="216" font-size="12.5" font-weight="400" fill="#9aa6b8" text-anchor="start">Dedup + quality gate</text>
+  <rect x="680" y="70" width="180" height="182" rx="10" fill="#161b26" stroke="#2b3547"/>
+  <circle cx="710" cy="102" r="18" fill="#12303a"/>
+  <g transform="translate(699,91) scale(0.9166666666666666)" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-4.34-4.34" /> <circle cx="11" cy="11" r="8" /></g>
+  <text x="738" y="108" font-size="15" font-weight="700" fill="#e6edf3" text-anchor="start">Search API</text>
+  <text x="698" y="144" font-size="12.5" font-weight="400" fill="#9aa6b8" text-anchor="start">FastAPI</text>
+  <text x="698" y="168" font-size="12.5" font-weight="400" fill="#9aa6b8" text-anchor="start">pgvector + BM25 hybrid</text>
+  <text x="698" y="192" font-size="12.5" font-weight="400" fill="#9aa6b8" text-anchor="start">Time-aware ranking</text>
+  <text x="698" y="216" font-size="12.5" font-weight="400" fill="#9aa6b8" text-anchor="start">LLM cited answers</text>
+  <rect x="900" y="70" width="180" height="182" rx="10" fill="#161b26" stroke="#2b3547"/>
+  <circle cx="930" cy="102" r="18" fill="#12303a"/>
+  <g transform="translate(919,91) scale(0.9166666666666666)" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1" /> <rect width="7" height="5" x="14" y="3" rx="1" /> <rect width="7" height="9" x="14" y="12" rx="1" /> <rect width="7" height="5" x="3" y="16" rx="1" /></g>
+  <text x="958" y="108" font-size="15" font-weight="700" fill="#e6edf3" text-anchor="start">Web dashboard</text>
+  <text x="918" y="144" font-size="12.5" font-weight="400" fill="#9aa6b8" text-anchor="start">Daily results</text>
+  <text x="918" y="168" font-size="12.5" font-weight="400" fill="#9aa6b8" text-anchor="start">Search + answers</text>
+  <text x="918" y="192" font-size="12.5" font-weight="400" fill="#9aa6b8" text-anchor="start">Responsive, dark/light</text>
+  <line x1="204" y1="161.0" x2="234" y2="161.0" stroke="#5b6b82" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <line x1="424" y1="161.0" x2="454" y2="161.0" stroke="#5b6b82" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <line x1="644" y1="161.0" x2="674" y2="161.0" stroke="#5b6b82" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <line x1="864" y1="161.0" x2="894" y2="161.0" stroke="#5b6b82" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <rect x="460" y="322" width="180" height="150" rx="10" fill="#161b26" stroke="#2b3547"/>
+  <circle cx="490" cy="354" r="18" fill="#12303a"/>
+  <g transform="translate(479,343) scale(0.9166666666666666)" fill="none" stroke="#d946ef" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z" /> <path d="M9 13a4.5 4.5 0 0 0 3-4" /> <path d="M6.003 5.125A3 3 0 0 0 6.401 6.5" /> <path d="M3.477 10.896a4 4 0 0 1 .585-.396" /> <path d="M6 18a4 4 0 0 1-1.967-.516" /> <path d="M12 13h4" /> <path d="M12 18h6a2 2 0 0 1 2 2v1" /> <path d="M12 8h8" /> <path d="M16 8V5a2 2 0 0 1 2-2" /> <circle cx="16" cy="13" r=".5" /> <circle cx="18" cy="3" r=".5" /> <circle cx="20" cy="21" r=".5" /> <circle cx="20" cy="8" r=".5" /></g>
+  <text x="518" y="360" font-size="15" font-weight="700" fill="#e6edf3" text-anchor="start">ML platform</text>
+  <text x="478" y="396" font-size="12.5" font-weight="400" fill="#9aa6b8" text-anchor="start">MLflow experiments</text>
+  <text x="478" y="420" font-size="12.5" font-weight="400" fill="#9aa6b8" text-anchor="start">Feast feature store</text>
+  <text x="478" y="444" font-size="12.5" font-weight="400" fill="#9aa6b8" text-anchor="start">Drift detection (PSI)</text>
+  <rect x="680" y="322" width="180" height="150" rx="10" fill="#161b26" stroke="#2b3547"/>
+  <circle cx="710" cy="354" r="18" fill="#12303a"/>
+  <g transform="translate(699,343) scale(0.9166666666666666)" fill="none" stroke="#d946ef" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8" /> <rect width="16" height="12" x="4" y="8" rx="2" /> <path d="M2 14h2" /> <path d="M20 14h2" /> <path d="M15 13v2" /> <path d="M9 13v2" /></g>
+  <text x="738" y="360" font-size="15" font-weight="700" fill="#e6edf3" text-anchor="start">Agents</text>
+  <text x="698" y="396" font-size="12.5" font-weight="400" fill="#9aa6b8" text-anchor="start">Prompt registry, A/B</text>
+  <text x="698" y="420" font-size="12.5" font-weight="400" fill="#9aa6b8" text-anchor="start">Multi-agent + memory</text>
+  <text x="698" y="444" font-size="12.5" font-weight="400" fill="#9aa6b8" text-anchor="start">Eval gate in CI</text>
+  <line x1="550.0" y1="256" x2="550.0" y2="316" stroke="#5b6b82" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <text x="558.0" y="286.0" font-size="11" font-weight="400" fill="#9aa6b8" text-anchor="start">features</text>
+  <line x1="770.0" y1="318" x2="770.0" y2="258" stroke="#5b6b82" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <text x="778.0" y="288.0" font-size="11" font-weight="400" fill="#9aa6b8" text-anchor="start">queries</text>
+  <rect x="20.0" y="502" width="520.0" height="58" rx="10" fill="#161b26" stroke="#2b3547"/>
+  <g transform="translate(36.0,520) scale(0.9166666666666666)" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2" /></g>
+  <text x="70.0" y="528" font-size="14" font-weight="700" fill="#e6edf3" text-anchor="start">Observability</text>
+  <text x="70.0" y="547" font-size="12" font-weight="400" fill="#9aa6b8" text-anchor="start">OpenTelemetry tracing, Prometheus metrics, Grafana dashboards</text>
+  <rect x="560.0" y="502" width="520.0" height="58" rx="10" fill="#161b26" stroke="#2b3547"/>
+  <g transform="translate(576.0,520) scale(0.9166666666666666)" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m10.852 14.772-.383.923" /> <path d="M13.148 14.772a3 3 0 1 0-2.296-5.544l-.383-.923" /> <path d="m13.148 9.228.383-.923" /> <path d="m13.53 15.696-.382-.924a3 3 0 1 1-2.296-5.544" /> <path d="m14.772 10.852.923-.383" /> <path d="m14.772 13.148.923.383" /> <path d="M4.5 10H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-.5" /> <path d="M4.5 14H4a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2h-.5" /> <path d="M6 18h.01" /> <path d="M6 6h.01" /> <path d="m9.228 10.852-.923-.383" /> <path d="m9.228 13.148-.923.383" /></g>
+  <text x="610.0" y="528" font-size="14" font-weight="700" fill="#e6edf3" text-anchor="start">Infrastructure</text>
+  <text x="610.0" y="547" font-size="12" font-weight="400" fill="#9aa6b8" text-anchor="start">Docker, Terraform, CI/CD workflows with an eval gate</text>
+</svg>

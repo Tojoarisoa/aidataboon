@@ -1,62 +1,46 @@
 # AI Data Boon
 
-Today's top Hacker News stories, new arXiv papers and trending GitHub repositories on one dashboard, with plain-English search over all of them and short answers that cite their sources.
+A daily dashboard of top Hacker News stories, new arXiv papers and trending GitHub repositories, with plain-English search and short, cited answers.
 
-Live at [aidataboon.com](https://aidataboon.com).
+**Live:** [aidataboon.com](https://aidataboon.com)
 
-## What it does
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/architecture-dark.svg">
+  <img alt="Architecture: sources flow through daily ingestion into a Bronze, Silver and Gold lakehouse, then a hybrid search API that serves the web dashboard; an ML platform reads lakehouse features and agents query the search API." src="docs/architecture-light.svg">
+</picture>
 
-- **Daily dashboard.** A scheduled pipeline ingests Hacker News, arXiv and GitHub trending every day; the page opens on the latest batch from each source.
-- **Search.** Hybrid retrieval (pgvector HNSW plus Postgres full-text search, fused with Reciprocal Rank Fusion) over everything ingested. Results come back newest first, and time phrases such as "this week" or "last 3 days" filter by publish date.
-- **Cited answers.** Claude writes a two-sentence answer from the top results, citing them as [1], [2], and so on; the page links each citation to its result. Without an LLM configured, search still works and the answer is left out.
+## Tech stack
 
-## Repository layout
-
-| Folder | What it is |
+| Layer | Technologies |
 |---|---|
-| [`data_platform/`](data_platform/) | Ingestion (HN, arXiv, GitHub trending), a Bronze/Silver/Gold lakehouse (DuckDB, Delta Lake, Cloudflare R2), the RAG search API (FastAPI, pgvector), an ML platform (MLflow, Feast), observability (OpenTelemetry, Prometheus, Grafana) and infrastructure as code (Terraform for Cloudflare, plus an optional AWS variant). |
-| [`agents/`](agents/) | LLMOps and multi-agent infrastructure on top of the search API: a prompt registry with A/B rollout, a CI-gated evaluation harness, a multi-agent pipeline with episodic memory, guardrails and tracing. |
-| [`frontend/`](frontend/) | The single-page dashboard and search UI served at aidataboon.com. |
-| [`.github/workflows/`](.github/workflows/) | Daily ingestion, the agents CI/CD pipeline and the search API deploy. |
+| Ingestion | Python, Apache Airflow, Apache Kafka |
+| Lakehouse | DuckDB, Delta Lake, S3-compatible object storage |
+| Search API | FastAPI, PostgreSQL + pgvector (HNSW), BM25, sentence-transformers, LLM answers |
+| ML platform | MLflow, Feast, scikit-learn |
+| Agents | Prompt registry with A/B rollout, multi-agent orchestration, CI eval gate |
+| Observability | OpenTelemetry, Prometheus, Grafana |
+| Infrastructure | Docker, Terraform, CI/CD workflows |
+| Web | HTML, CSS, JavaScript |
 
-Each of `data_platform/` and `agents/` has a `00_project_design.md` with its architecture and design decisions.
-
-## Run it locally
-
-Requirements: [uv](https://docs.astral.sh/uv/), Python 3.14 and Docker.
+## Quick start
 
 ```bash
 uv sync
-
-# Platform: the full local stack (Postgres/pgvector, MinIO, Airflow, Kafka, the RAG API, Prometheus, Grafana, ...)
-cp data_platform/.env.example data_platform/.env   # optional settings
-docker compose -f data_platform/01_local_stack.yml up -d
-
-# Agents: includes the platform stack and adds the agent API on :8100
-cp agents/.env.example agents/.env                 # optional settings
-docker compose -f agents/01_agents_stack.yml up -d
-
-# Evaluation gate (needs the RAG API on :8000, for example from the platform stack)
-uv run python agents/03_eval_harness.py
+docker compose -f data_platform/01_local_stack.yml up -d   # platform stack
+docker compose -f agents/01_agents_stack.yml up -d         # adds the agent API
 ```
 
-Every module also runs on its own with built-in fallbacks (synthetic data, in-memory stores, no LLM), for example `uv run python data_platform/05_rag_service.py`.
+Optional settings live in `data_platform/.env.example` and `agents/.env.example`. Each module also runs alone with built-in fallbacks, for example `uv run python data_platform/05_rag_service.py`.
 
-## CI/CD
+## Layout
 
-| Workflow | When it runs | What it does | Secrets |
-|---|---|---|---|
-| `ingest.yml` | Daily at 05:17 UTC, or by hand | Ingests HN, arXiv and GitHub into Bronze, builds Silver and Gold, then redeploys the search API so it indexes the new data | `S3_ENDPOINT_URL`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` (an R2 token with Object Read & Write on the `aidataboon-*` buckets), `RENDER_DEPLOY_HOOK_API` |
-| `agents-cicd.yml` | Changes to `agents/` or the search service | Lint, type check, evaluation gate, image build, then deploy of the agent API | `RENDER_DEPLOY_HOOK_AGENTS` |
-| `api-deploy.yml` | Changes to the search API image | Builds the image, smoke-tests it, then deploys it | `RENDER_DEPLOY_HOOK_API` |
+- `data_platform/`: ingestion, lakehouse, search API, ML platform, observability, infrastructure
+- `agents/`: prompt registry, evaluation harness, multi-agent pipeline
+- `frontend/`: dashboard and search UI
+- `.github/workflows/`: daily ingestion, CI/CD
 
-## Deployment
-
-- **Search API and agent API:** Render web services defined by `data_platform/render.yaml` and `agents/render.yaml`. Render's own auto-deploy is off; the workflows above deploy through each service's deploy hook. The search API's answers use `LLM_PROVIDER=anthropic` with `ANTHROPIC_API_KEY` set on the service.
-- **Database:** Neon Postgres with pgvector, set as `DATABASE_URL` on each service.
-- **Frontend:** Cloudflare Pages, deployed with `npx wrangler pages deploy frontend --project-name aidataboon --branch main`.
-- **Edge and DNS:** Cloudflare Terraform in `data_platform/09_cloudflare_infra.tf` and `agents/07_cloudflare_agents.tf`, each with its own state. Terraform state files are git-ignored.
+Design notes are in each folder's `00_project_design.md`.
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE). Diagram icons from [Lucide](https://lucide.dev) (ISC).
