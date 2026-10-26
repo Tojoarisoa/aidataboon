@@ -282,7 +282,7 @@
 
       <div class="examples">
         <span>Try</span>
-        <button type="button" data-q="Papers about LLM fine-tuning from this week">Papers about LLM fine-tuning from this week</button>
+        <button type="button" data-q="Papers about LLM fine-tuning">Papers about LLM fine-tuning</button>
         <button type="button" data-q="What is Hacker News saying about Rust?">What is Hacker News saying about Rust?</button>
         <button type="button" data-q="Top 5 trending repos for AI agents">Top 5 trending repos for AI agents</button>
       </div>
@@ -436,11 +436,20 @@
       return li;
     }
 
-    function renderSummary(sources, tookMs) {
+    // The index is refreshed in batches, so say how current it is.
+    function freshnessNote(data) {
+      const asOf = data.data_as_of ? formatDate(data.data_as_of) : "";
+      return asOf ? `Newest data: ${asOf}` : "";
+    }
+
+    function renderSummary(data) {
+      const sources = data.sources || [];
       statusEl.className = "summary";
       statusEl.replaceChildren();
-      const count = `${plural(sources.length, "result", "results")} in ${numberFmt.format(Math.round(tookMs || 0))} ms`;
-      statusEl.append(el("span", { textContent: count }));
+      let count = `${plural(sources.length, "result", "results")} in ${numberFmt.format(Math.round(data.took_ms || 0))} ms`;
+      if (data.time_window) count += `, from the ${data.time_window.label}`;
+      const note = freshnessNote(data);
+      statusEl.append(el("span", { textContent: note ? `${count}. ${note}` : count }));
 
       const bySource = {};
       for (const s of sources) bySource[s.source] = (bySource[s.source] || 0) + 1;
@@ -512,10 +521,14 @@
 
         if (!sources.length) {
           setStatus("");
-          sourcesEl.append(el("li", { className: "empty", textContent: "No matches. Try fewer or broader words." }));
+          const note = freshnessNote(data);
+          const message = data.time_window
+            ? `Nothing from the ${data.time_window.label}.${note ? ` ${note}.` : ""} Try the same search without the time range.`
+            : "No matches. Try fewer or broader words.";
+          sourcesEl.append(el("li", { className: "empty", textContent: message }));
         } else {
           for (const src of sources) sourcesEl.append(renderResult(src));
-          renderSummary(sources, data.took_ms);
+          renderSummary(data);
         }
         sourcesEl.hidden = false;
       } catch (err) {

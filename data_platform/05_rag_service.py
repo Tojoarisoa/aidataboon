@@ -358,6 +358,74 @@ def _detect_source_filter(query: str) -> str | None:
     return None
 
 
+# Maps time phrases in a query to a `published_at` cutoff. Without this,
+# "papers from this week" matched on the topic words only and happily
+# returned months-old items. The phrase is stripped from the text used for
+# retrieval so "week"/"month" don't count as topic words.
+_TIME_PHRASES: list[tuple[re.Pattern[str], str, timedelta]] = [
+    (re.compile(r"\b(?:today|(?:past|last) (?:day|24 hours))\b"), "past day", timedelta(days=1)),
+    (re.compile(r"\byesterday\b"), "past 2 days", timedelta(days=2)),
+    (re.compile(r"\b(?:(?:this|past|last) week|(?:past|last) 7 days)\b"), "past 7 days", timedelta(days=7)),
+    (re.compile(r"\b(?:(?:this|past|last) month|(?:past|last) 30 days)\b"), "past 30 days", timedelta(days=30)),
+    (re.compile(r"\b(?:this|past|last) year\b"), "past year", timedelta(days=365)),
+]
+_LAST_N_RE = re.compile(r"\b(?:past|last) (\d{1,3}) (day|week|month)s?\b")
+_UNIT_DAYS = {"day": 1, "week": 7, "month": 30}
+# Recency words without an explicit window: rank newer items higher
+# instead of filtering anything out.
+_RECENCY_RE = re.compile(r"\b(?:latest|recent|recently|newest)\b")
+
+
+@dataclass
+class TimeWindow:
+    label: str
+    since: datetime
+
+
+def _detect_time_window(query: str) -> tuple[TimeWindow | None, str]:
+    """Returns the window a query asks for (if any) and the query with the
+    time phrase removed."""
+    lowered = query.lower()
+    window: tuple[str, timedelta] | None = None
+    span: tuple[int, int] | None = None
+
+    match = _LAST_N_RE.search(lowered)
+    if match:
+        n, unit = int(match[1]), match[2]
+        if n > 0:
+            window = (f"past {n} {unit}{'s' if n != 1 else ''}", timedelta(days=n * _UNIT_DAYS[unit]))
+            span = match.span()
+    if window is None:
+        for pattern, label, delta in _TIME_PHRASES:
+            match = pattern.search(lowered)
+            if match:
+                window, span = (label, delta), match.span()
+                break
+    if window is None or span is None:
+        return None, query
+
+    cleaned = re.sub(r"\s+", " ", f"{query[:span[0]]} {query[span[1]:]}").strip()
+    return TimeWindow(label=window[0], since=datetime.now(timezone.utc) - window[1]), cleaned or query
+
+
+def _blend_recency(candidates: list[dict[str, Any]], rrf_k: int) -> list[dict[str, Any]]:
+    """Reciprocal Rank Fusion of relevance order (as given) and recency
+    order, so "latest X" favors newer items without dropping relevance."""
+    epoch = datetime.min.replace(tzinfo=timezone.utc)
+    by_recency = sorted(
+        range(len(candidates)),
+        key=lambda i: _coerce_datetime(candidates[i].get("published_at")) or epoch,
+        reverse=True,
+    )
+    recency_rank = {idx: rank for rank, idx in enumerate(by_recency)}
+    scored = [
+        (1.0 / (rrf_k + rank + 1) + 1.0 / (rrf_k + recency_rank[rank] + 1), c)
+        for rank, c in enumerate(candidates)
+    ]
+    scored.sort(key=lambda x: x[0], reverse=True)
+    return [c for _, c in scored]
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # SECTION 4 — VECTOR STORE (pgvector + DuckDB fallback)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -505,12 +573,18 @@ class VectorStore:
 
     # -- Retrieval ------------------------------------------------------------------
 
-    def vector_search(self, query_embedding: np.ndarray, limit: int) -> list[dict[str, Any]]:
-        if self._pg is not None:
-            return self._vector_search_pg(query_embedding, limit)
-        return self._vector_search_duck(query_embedding, limit)
+    # `since` restricts every search to documents published at or after it.
 
-    def _vector_search_pg(self, query_embedding: np.ndarray, limit: int) -> list[dict[str, Any]]:
+    def vector_search(
+        self, query_embedding: np.ndarray, limit: int, since: datetime | None = None
+    ) -> list[dict[str, Any]]:
+        if self._pg is not None:
+            return self._vector_search_pg(query_embedding, limit, since)
+        return self._vector_search_duck(query_embedding, limit, since)
+
+    def _vector_search_pg(
+        self, query_embedding: np.ndarray, limit: int, since: datetime | None
+    ) -> list[dict[str, Any]]:
         emb_literal = "[" + ",".join(f"{x:.6f}" for x in query_embedding) + "]"
         with self._pg.cursor(row_factory=dict_row) as cur:
             cur.execute(
@@ -519,32 +593,38 @@ class VectorStore:
                        score, num_comments, published_at,
                        1 - (embedding <=> %s::vector) AS vector_score
                 FROM content_embeddings
+                WHERE %s::timestamptz IS NULL OR published_at >= %s::timestamptz
                 ORDER BY embedding <=> %s::vector
                 LIMIT %s
                 """,
-                (emb_literal, emb_literal, limit),
+                (emb_literal, since, since, emb_literal, limit),
             )
             return list(cur.fetchall())
 
-    def _vector_search_duck(self, query_embedding: np.ndarray, limit: int) -> list[dict[str, Any]]:
+    def _vector_search_duck(
+        self, query_embedding: np.ndarray, limit: int, since: datetime | None
+    ) -> list[dict[str, Any]]:
+        # The DuckDB column is a naive UTC TIMESTAMP.
+        naive_since = since.astimezone(timezone.utc).replace(tzinfo=None) if since else None
         res = self._duck.execute(
             """
             SELECT * EXCLUDE (embedding), list_cosine_similarity(embedding, ?) AS vector_score
             FROM embeddings
+            WHERE CAST(? AS TIMESTAMP) IS NULL OR published_at >= CAST(? AS TIMESTAMP)
             ORDER BY vector_score DESC
             LIMIT ?
             """,
-            [query_embedding.tolist(), limit],
+            [query_embedding.tolist(), naive_since, naive_since, limit],
         )
         cols = [d[0] for d in res.description]
         return [dict(zip(cols, row)) for row in res.fetchall()]
 
-    def bm25_search(self, query_text: str, limit: int) -> list[dict[str, Any]]:
+    def bm25_search(self, query_text: str, limit: int, since: datetime | None = None) -> list[dict[str, Any]]:
         if self._pg is not None:
-            return self._bm25_search_pg(query_text, limit)
-        return self._bm25_search_duck(query_text, limit)
+            return self._bm25_search_pg(query_text, limit, since)
+        return self._bm25_search_duck(query_text, limit, since)
 
-    def _bm25_search_pg(self, query_text: str, limit: int) -> list[dict[str, Any]]:
+    def _bm25_search_pg(self, query_text: str, limit: int, since: datetime | None) -> list[dict[str, Any]]:
         with self._pg.cursor(row_factory=dict_row) as cur:
             cur.execute(
                 """
@@ -555,25 +635,38 @@ class VectorStore:
                 FROM content_embeddings
                 WHERE to_tsvector('english', title || ' ' || content)
                       @@ plainto_tsquery('english', %s)
+                  AND (%s::timestamptz IS NULL OR published_at >= %s::timestamptz)
                 ORDER BY bm25_score DESC
                 LIMIT %s
                 """,
-                (query_text, query_text, limit),
+                (query_text, query_text, since, since, limit),
             )
             return list(cur.fetchall())
 
-    def _bm25_search_duck(self, query_text: str, limit: int) -> list[dict[str, Any]]:
+    def _bm25_search_duck(self, query_text: str, limit: int, since: datetime | None) -> list[dict[str, Any]]:
         if self._bm25 is None or not self._bm25_ids:
             return []
         results = []
-        for idx, bm25_score in self._bm25.search(query_text, limit):
-            row = self._docs[self._bm25_ids[idx]].to_dict()
+        # Score the whole corpus when filtering so the cutoff can't starve the top-`limit`.
+        for idx, bm25_score in self._bm25.search(query_text, len(self._bm25_ids) if since else limit):
+            doc = self._docs[self._bm25_ids[idx]]
+            published = _coerce_datetime(doc.published_at)
+            if since and (published is None or published < since):
+                continue
+            row = doc.to_dict()
             row["bm25_score"] = bm25_score
             results.append(row)
+            if len(results) >= limit:
+                break
         return results
 
     def hybrid_search(
-        self, query_text: str, query_embedding: np.ndarray, limit: int, source: str | None = None
+        self,
+        query_text: str,
+        query_embedding: np.ndarray,
+        limit: int,
+        source: str | None = None,
+        since: datetime | None = None,
     ) -> list[dict[str, Any]]:
         """Reciprocal Rank Fusion of vector similarity + BM25 lexical rank.
         RRF is robust to the very different score scales of cosine
@@ -584,11 +677,14 @@ class VectorStore:
         If `source` is given, retrieval fetches a wider candidate pool and
         restricts the ranked results to that source — unless none match,
         in which case it falls back to the mixed-source ranking so a query
-        never returns empty."""
+        never returns empty.
+
+        `since` is a hard cutoff with no fallback: a query for "this week"
+        returns nothing rather than older items when the window is empty."""
         retrieve_n = max(limit, self.config.top_k_retrieve)
         fetch_n = retrieve_n * 3 if source else retrieve_n
-        vec_hits = self.vector_search(query_embedding, limit=fetch_n)
-        bm25_hits = self.bm25_search(query_text, limit=fetch_n)
+        vec_hits = self.vector_search(query_embedding, limit=fetch_n, since=since)
+        bm25_hits = self.bm25_search(query_text, limit=fetch_n, since=since)
 
         fused: dict[str, dict[str, Any]] = {}
         rrf_k = self.config.rrf_k
@@ -927,9 +1023,17 @@ class KnowledgeBaseIndexer:
         self.embedder = embedder
         self.store = store
         self.documents: list[Document] = []
+        self.data_as_of: datetime | None = None
 
     def run(self) -> dict[str, Any]:
         self.documents = load_knowledge_base(self.config)
+        # Newest HN/arXiv item = how current the index is. GitHub dates are
+        # repo creation dates, so they say nothing about freshness.
+        dated = [
+            dt for d in self.documents
+            if d.source != "github" and (dt := _coerce_datetime(d.published_at)) is not None
+        ]
+        self.data_as_of = max(dated, default=None)
         texts = [d.text_for_embedding() for d in self.documents]
         embeddings = self.embedder.encode(texts)
         n = self.store.upsert(self.documents, embeddings)
@@ -950,6 +1054,8 @@ class SearchResult:
     answer: str
     sources: list[dict[str, Any]]
     took_ms: float
+    time_window: dict[str, str] | None = None
+    data_as_of: str | None = None
 
 
 class RAGPipeline:
@@ -976,20 +1082,36 @@ class RAGPipeline:
             return cached[1]
 
         t0 = time.perf_counter()
-        query_embedding = self.embedder.encode_one(query)
         source_filter = _detect_source_filter(query)
+        window, retrieval_query = _detect_time_window(query)
+        if source_filter == "github":
+            # GitHub results are the current trending list; their dates are
+            # repo creation dates, so a time window would wrongly drop them.
+            window, retrieval_query = None, query
+        wants_recent = window is None and bool(_RECENCY_RE.search(query.lower()))
+
+        query_embedding = self.embedder.encode_one(retrieval_query)
         candidates = self.store.hybrid_search(
-            query, query_embedding, limit=self.config.top_k_retrieve, source=source_filter
+            retrieval_query, query_embedding, limit=self.config.top_k_retrieve,
+            source=source_filter, since=window.since if window else None,
         )
-        reranked = self.reranker.rerank(query, candidates, top_k=max(limit, self.config.top_k_rerank))[:limit]
-        reranked = self.features.annotate(reranked)
+        pool = max(limit, self.config.top_k_rerank)
+        if wants_recent:
+            pool = max(pool, limit * 3)  # wider pool so newer items can move up
+        reranked = self.reranker.rerank(retrieval_query, candidates, top_k=pool)
+        if wants_recent:
+            reranked = _blend_recency(reranked, self.config.rrf_k)
+        reranked = self.features.annotate(reranked[:limit])
         answer = self.answers.compose(query, reranked)
 
+        data_as_of = self.indexer.data_as_of
         result = SearchResult(
             query=query,
             answer=answer,
             sources=[_serialize_source(r) for r in reranked],
             took_ms=round((time.perf_counter() - t0) * 1000, 2),
+            time_window={"label": window.label, "since": window.since.isoformat()} if window else None,
+            data_as_of=data_as_of.isoformat() if data_as_of else None,
         )
         self._cache[cache_key] = (time.monotonic(), result)
         return result
@@ -1027,6 +1149,7 @@ class RAGPipeline:
         return {
             "status": "ok" if store_health["documents"] > 0 else "degraded",
             "documents_indexed": store_health["documents"],
+            "data_as_of": self.indexer.data_as_of.isoformat() if self.indexer.data_as_of else None,
             "vector_backend": self.store.backend,
             "embedding_backend": self.embedder.backend,
             "reranker_backend": self.reranker.backend,
