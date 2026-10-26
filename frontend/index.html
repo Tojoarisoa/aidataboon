@@ -1,477 +1,384 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>AI Data Boon — Today's Hacker News, arXiv and GitHub, searchable</title>
   <meta name="description" content="Today's top Hacker News stories, new arXiv papers and trending GitHub repositories, with plain-English search over all of them." />
-  <meta name="color-scheme" content="light dark" />
-  <meta name="theme-color" content="#eef2f5" media="(prefers-color-scheme: light)" />
-  <meta name="theme-color" content="#121922" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#070a12" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://aidataboon.com/" />
   <meta property="og:title" content="AI Data Boon" />
   <meta property="og:description" content="Today's top Hacker News stories, new arXiv papers and trending GitHub repositories, with plain-English search over all of them." />
-  <!-- One dot per source (HN, arXiv, GitHub) under the search underline. -->
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2316202e'/%3E%3Crect x='6' y='19' width='20' height='3' rx='1.5' fill='%234fc3b5'/%3E%3Ccircle cx='9' cy='12' r='2.6' fill='%23f08a3e'/%3E%3Ccircle cx='16' cy='12' r='2.6' fill='%23e66a70'/%3E%3Ccircle cx='23' cy='12' r='2.6' fill='%23a094f5'/%3E%3C/svg%3E" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" />
+  <!-- Dark is the default; light only when the visitor asked for it. Runs before paint so nothing flashes. -->
+  <script>(function () { var t = "dark"; try { if (localStorage.getItem("adb_theme") === "light") t = "light"; } catch (e) {} document.documentElement.setAttribute("data-theme", t); var m = document.querySelector('meta[name="theme-color"]'); if (m) m.setAttribute("content", t === "light" ? "#eef1f6" : "#070a12"); })();</script>
+  <!-- Corner brackets (cyan top left, magenta bottom right) around three source dots. -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='4' fill='%23070a12'/%3E%3Cpath d='M4 11V4h7' fill='none' stroke='%2322d3ee' stroke-width='3'/%3E%3Cpath d='M28 21v7h-7' fill='none' stroke='%23d946ef' stroke-width='3'/%3E%3Ccircle cx='10' cy='16' r='2.6' fill='%23fb923c'/%3E%3Ccircle cx='16' cy='16' r='2.6' fill='%23ff4d6d'/%3E%3Ccircle cx='22' cy='16' r='2.6' fill='%23a78bfa'/%3E%3C/svg%3E" />
   <style>
     :root {
-      --page: #eef2f5;
-      --ink: #16202e;
-      --muted: #566173;
-      --rule: #cfd7df;
-      --accent: #0a7c72;
-      --accent-ink: #ffffff;
-      --hn: #ad4a08;
-      --arxiv: #a8232a;
-      --github: #5946c9;
-
-      --sans: "Schibsted Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
-      --serif: "Source Serif 4", Georgia, "Times New Roman", serif;
-
-      /* 1.25 scale on a 17px base */
-      --step--1: 0.8rem;
-      --step-0: 1rem;
-      --step-1: 1.25rem;
-      --step-2: 1.563rem;
-      --step-3: 1.953rem;
-
-      --gutter: 1.5rem;
+      --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+      --radius: 3px;
+      --pad-x: clamp(14px, 3vw, 40px);
     }
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --page: #121922;
-        --ink: #e3e9ef;
-        --muted: #9aa6b5;
-        --rule: #2b3644;
-        --accent: #4fc3b5;
-        --accent-ink: #0c1a19;
-        --hn: #f08a3e;
-        --arxiv: #e66a70;
-        --github: #a094f5;
-      }
+    :root[data-theme="light"] {
+      --bg: #eef1f6;
+      --surface: #ffffff;
+      --surface-muted: #e4e8f0;
+      --border: #cfd6e3;
+      --text: #12151d;
+      --text-muted: #545b6e;
+      --text-faint: #6f788b;
+      --accent: #0891b2;
+      --accent-hover: #0e7490;
+      --accent2: #a21caf;
+      --accent-text: #ffffff;
+      --accent-soft: rgba(8, 145, 178, 0.1);
+      --accent-glow: rgba(8, 145, 178, 0.28);
+      --bad: #dc2626;
+      --hn: #c2410c;
+      --arxiv: #be123c;
+      --github: #6d28d9;
+      color-scheme: light;
+    }
+    :root:not([data-theme="light"]) {
+      --bg: #070a12;
+      --surface: #0d1220;
+      --surface-muted: #121a2c;
+      --border: #202b45;
+      --text: #e7ecf7;
+      --text-muted: #8b95b3;
+      --text-faint: #6b7694;
+      --accent: #22d3ee;
+      --accent-hover: #67e8f9;
+      --accent2: #d946ef;
+      --accent-text: #04141a;
+      --accent-soft: rgba(34, 211, 238, 0.12);
+      --accent-glow: rgba(34, 211, 238, 0.45);
+      --bad: #ff4d6d;
+      --hn: #fb923c;
+      --arxiv: #ff6b88;
+      --github: #a78bfa;
+      color-scheme: dark;
     }
 
     * { box-sizing: border-box; }
-    html { font-size: 106.25%; } /* 17px */
     body {
       margin: 0;
-      background: var(--page);
-      color: var(--ink);
-      font-family: var(--sans);
-      font-size: var(--step-0);
+      font-family: var(--font-ui);
+      font-size: 15px;
       line-height: 1.5;
+      min-height: 100vh; min-height: 100dvh;
+      background:
+        radial-gradient(ellipse 900px 460px at 50% -8%, var(--accent-soft), transparent 60%) no-repeat,
+        var(--bg);
+      color: var(--text);
       -webkit-font-smoothing: antialiased;
-    }
-    .wrap {
       display: flex;
       flex-direction: column;
-      min-height: 100vh;
-      max-width: 84rem;
-      margin: 0 auto;
-      padding: 1.5rem var(--gutter) 1.5rem;
     }
-    main { flex: 1; }
     a { color: inherit; }
-    :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
     [hidden] { display: none !important; }
+    .sr-only {
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+    }
+    /* Small tracked caps: labels, counts, stats. */
+    .label {
+      font-family: var(--font-mono); font-size: 0.7rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-faint);
+    }
 
-    /* Header: wordmark beside the question, which fills the row. */
-    .top {
-      display: grid;
-      grid-template-columns: auto minmax(0, 1fr);
-      align-items: end;
-      gap: 0.5rem 2.5rem;
-      margin-bottom: 0.4rem;
+    /* ── App bar: wordmark | search | theme. Full width, sticky, gradient divider. ── */
+    .appbar {
+      position: sticky; top: 0; z-index: 40;
+      background: color-mix(in srgb, var(--bg) 86%, transparent);
+      -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
     }
-    .wordmark {
-      margin: 0;
-      padding-bottom: 0.55rem;
-      font-size: var(--step-2);
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      white-space: nowrap;
+    .appbar::after {
+      content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px; pointer-events: none;
+      background: linear-gradient(90deg, var(--accent) 0%, var(--accent2) 55%, transparent 92%); opacity: 0.55;
     }
-    .wordmark a { text-decoration: none; }
-    .ask-row {
-      display: flex;
-      align-items: flex-end;
-      gap: 1rem;
+    .appbar-in {
+      display: flex; align-items: center; gap: clamp(10px, 2vw, 26px);
+      min-height: 64px; padding: 10px var(--pad-x);
     }
-    /* The heavy underline doubles as the progress bar while searching. */
-    .field {
-      position: relative;
-      flex: 1;
-      min-width: 0;
-      border-bottom: 3px solid var(--ink);
+    /* Wordmark between a cyan and a magenta corner bracket. */
+    .brand {
+      position: relative; flex: none; padding: 7px 14px;
+      font-size: 1.05rem; font-weight: 800; letter-spacing: 0.01em; white-space: nowrap;
+      color: var(--text); text-decoration: none;
     }
-    .field:focus-within { border-bottom-color: var(--accent); }
-    .field::after {
-      content: "";
-      position: absolute;
-      left: 0;
-      bottom: -3px;
-      width: 30%;
-      height: 3px;
-      background: var(--accent);
-      opacity: 0;
-    }
-    .busy .field { border-bottom-color: var(--rule); }
-    .busy .field::after {
-      opacity: 1;
-      animation: sweep 1.1s ease-in-out infinite alternate;
-    }
-    @keyframes sweep {
-      from { left: 0; }
-      to { left: 70%; }
-    }
+    .brand::before, .brand::after { content: ""; position: absolute; width: 10px; height: 10px; pointer-events: none; }
+    .brand::before { top: 0; left: 0; border-top: 2px solid var(--accent); border-left: 2px solid var(--accent); }
+    .brand::after { bottom: 0; right: 0; border-bottom: 2px solid var(--accent2); border-right: 2px solid var(--accent2); }
+    .brand:hover { text-shadow: 0 0 12px var(--accent-glow); }
+
+    .search { display: flex; align-items: flex-end; gap: 8px; flex: 1; min-width: 0; margin: 0; }
+    .field { position: relative; flex: 1; min-width: 0; }
     /* A textarea so long questions wrap instead of scrolling out of view;
        it grows with its content (see autosize()). */
     #query {
-      display: block;
-      width: 100%;
-      border: 0;
-      background: transparent;
-      color: var(--ink);
-      font: 500 var(--step-2)/1.25 var(--sans);
-      letter-spacing: -0.015em;
-      padding: 0.2rem 0 0.35rem;
-      resize: none;
-      overflow: hidden;
+      display: block; width: 100%; padding: 10px 14px; resize: none; overflow: hidden;
+      border-radius: var(--radius); border: 1px solid var(--border);
+      background: var(--surface-muted); color: var(--text);
+      font: 500 0.98rem/1.35 var(--font-ui);
     }
-    #query::placeholder { color: var(--muted); opacity: 0.75; }
-    #query:focus { outline: none; }
-    #submit-btn {
-      flex: none;
-      margin-bottom: 0.4rem;
-      border: 0;
-      border-radius: 999px;
-      background: var(--accent);
-      color: var(--accent-ink);
-      font: 700 var(--step-0)/1 var(--sans);
-      padding: 0.7rem 1.25rem;
-      cursor: pointer;
+    #query::placeholder { color: var(--text-faint); }
+    #query:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft), 0 0 14px var(--accent-glow); }
+    /* While searching, a lit segment sweeps along the bottom of the field. */
+    .field::after {
+      content: ""; position: absolute; left: 0; bottom: 0; width: 30%; height: 2px;
+      background: var(--accent); box-shadow: 0 0 8px var(--accent-glow); opacity: 0; pointer-events: none;
     }
-    #submit-btn:disabled { opacity: 0.6; cursor: progress; }
-    .index-note {
-      margin: 0 0 1.75rem;
-      color: var(--muted);
-      font-size: var(--step--1);
-    }
-    .index-note:empty::before { content: "\00a0"; }
+    .busy .field::after { opacity: 1; animation: sweep 1.1s ease-in-out infinite alternate; }
+    @keyframes sweep { from { left: 0; } to { left: 70%; } }
 
-    .section-title {
-      margin: 0 0 0.9rem;
-      font-size: var(--step-1);
-      font-weight: 700;
-      letter-spacing: -0.01em;
+    button {
+      padding: 10px 18px; border-radius: var(--radius); border: 1px solid transparent;
+      background: var(--accent); color: var(--accent-text);
+      font: 700 0.8rem/1.2 var(--font-ui); text-transform: uppercase; letter-spacing: 0.06em;
+      cursor: pointer; white-space: nowrap;
+      transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
     }
+    button:hover { background: var(--accent-hover); box-shadow: 0 0 16px var(--accent-glow); }
+    button:disabled { opacity: 0.55; cursor: progress; }
+    #submit-btn { padding: 11px 18px; }
+    .icon-btn {
+      display: inline-grid; place-items: center; width: 38px; height: 38px; padding: 0; flex: none;
+      background: transparent; border: 1px solid transparent; color: var(--text-muted);
+      letter-spacing: 0;
+    }
+    .icon-btn:hover { background: var(--surface-muted); color: var(--text); border-color: var(--border); box-shadow: none; }
+    .icon-btn svg { width: 18px; height: 18px; }
+    .link-btn {
+      padding: 0; border: 0; background: none; color: var(--accent);
+      font: 600 0.72rem/1.4 var(--font-mono); text-transform: uppercase; letter-spacing: 0.06em;
+    }
+    .link-btn:hover { background: none; box-shadow: none; color: var(--accent-hover); text-shadow: 0 0 10px var(--accent-glow); }
 
-    /* Dashboard: one column per source, separated by rules, not cards. */
+    /* ── Page ── */
+    main { flex: 1; width: 100%; padding: 20px var(--pad-x) 40px; }
+    .page-head {
+      display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px;
+      margin: 0 0 16px;
+    }
+    .page-head h1 { margin: 0; font-size: 1.25rem; font-weight: 700; letter-spacing: 0.005em; }
+
+    /* Cards carry the frame: corner brackets, cyan top left and magenta bottom right. */
+    .card {
+      position: relative; min-width: 0;
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 16px 18px;
+    }
+    .card::before, .card::after { content: ""; position: absolute; width: 12px; height: 12px; pointer-events: none; opacity: 0.85; }
+    .card::before { top: -1px; left: -1px; border-top: 2px solid var(--accent); border-left: 2px solid var(--accent); }
+    .card::after { bottom: -1px; right: -1px; border-bottom: 2px solid var(--accent2); border-right: 2px solid var(--accent2); }
+
     .src-hackernews { --src: var(--hn); }
     .src-arxiv { --src: var(--arxiv); }
     .src-github { --src: var(--github); }
+    /* A lit diamond in the source's colour marks each source. */
+    .marker {
+      display: inline-block; width: 7px; height: 7px; flex: none; transform: rotate(45deg);
+      background: var(--src, var(--accent)); box-shadow: 0 0 6px 1px color-mix(in srgb, var(--src, var(--accent)) 55%, transparent);
+    }
 
-    .tabs { display: none; }
-    .daily-grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 0 2rem;
+    /* ── Dashboard ── */
+    .daily-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; align-items: start; }
+    .col-head { display: flex; align-items: center; gap: 9px; margin: 0 0 2px; }
+    .col-head h2 {
+      margin: 0; flex: 1; color: var(--text);
+      font: 700 0.78rem var(--font-mono); text-transform: uppercase; letter-spacing: 0.08em;
     }
-    .col { min-width: 0; border-top: 3px solid var(--src); padding-top: 0.75rem; }
-    .col-head { margin-bottom: 0.35rem; }
-    .col-head h3 {
-      margin: 0;
-      color: var(--src);
-      font-size: var(--step-0);
-      font-weight: 700;
-    }
-    .col-sub { margin: 0; color: var(--muted); font-size: var(--step--1); }
+    .col-count { font: 600 0.74rem var(--font-mono); color: var(--src); font-variant-numeric: tabular-nums; }
+    .col-sub { margin: 0 0 6px; }
     .daily-list { margin: 0; padding: 0; list-style: none; }
-    .daily-item {
-      padding: 0.65rem 0 0.7rem;
-      border-bottom: 1px solid var(--rule);
-      overflow-wrap: anywhere;
-    }
+    .daily-item { padding: 10px 0 11px; border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
+    .daily-item:last-child { border-bottom: 0; }
     .daily-item .t {
-      display: block;
-      font-weight: 700;
-      line-height: 1.3;
-      text-decoration: none;
+      display: block; font-weight: 650; font-size: 0.95rem; line-height: 1.32; text-decoration: none; color: var(--text);
     }
-    .daily-item .t:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+    .daily-item .t:hover { color: var(--accent); }
     .daily-item .d {
-      margin: 0.2rem 0 0;
-      color: var(--ink);
-      font: 400 var(--step--1)/1.45 var(--serif);
-      font-size: 0.85rem;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
+      margin: 3px 0 0; color: var(--text-muted); font-size: 0.84rem; line-height: 1.45;
+      display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
     }
-    .more {
-      margin-top: 0.6rem;
-      border: 0;
-      padding: 0;
-      background: none;
-      color: var(--accent);
-      font: 700 var(--step--1)/1.4 var(--sans);
-      cursor: pointer;
-    }
-    .more:hover { text-decoration: underline; }
-    .col-status { padding: 0.75rem 0; color: var(--muted); font-size: var(--step--1); }
-    .topics { margin-top: 1.4rem; }
-    .topics h4 { margin: 0 0 0.45rem; font-size: var(--step--1); font-weight: 700; }
+    .col-foot { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; margin-top: 8px; }
+    .col-foot:empty { display: none; }
+    .col-status { margin: 10px 0 2px; color: var(--text-muted); font-size: 0.84rem; }
+    .topics { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); }
+    .topics .label { margin: 0 0 8px; }
 
-    /* Shared small pieces */
+    /* Stats and meta in mono with tabular figures. */
     .meta {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.1rem 0.9rem;
-      margin: 0.3rem 0 0;
-      padding: 0;
-      list-style: none;
-      color: var(--muted);
-      font-size: var(--step--1);
+      display: flex; flex-wrap: wrap; gap: 2px 12px; margin: 5px 0 0; padding: 0; list-style: none;
+      font: 0.72rem var(--font-mono); color: var(--text-faint); font-variant-numeric: tabular-nums;
     }
-    .meta a { color: var(--muted); text-underline-offset: 3px; }
-    .meta a:hover { color: var(--ink); }
-    .chips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0; padding: 0; list-style: none; }
-    .chips button, .chips li.tag {
-      padding: 0.05rem 0.55rem;
-      border: 1px solid var(--rule);
-      border-radius: 999px;
-      background: none;
-      color: var(--muted);
-      font: 400 var(--step--1)/1.6 var(--sans);
+    .meta a { color: var(--text-muted); text-underline-offset: 3px; }
+    .meta a:hover { color: var(--accent); }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+    .chip {
+      display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 999px;
+      border: 1px solid var(--border); background: var(--surface-muted); color: var(--text-muted);
+      font: 600 0.74rem/1.3 var(--font-ui); text-transform: none; letter-spacing: 0;
     }
-    .chips button { cursor: pointer; color: var(--ink); }
-    .chips button:hover { border-color: var(--accent); }
+    button.chip { cursor: pointer; }
+    button.chip:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 10px var(--accent-glow); }
 
-    /* Search view: answer beside the results on wide screens. */
-    .back {
-      margin: 0 0 1rem;
-      border: 0;
-      padding: 0;
-      background: none;
-      color: var(--accent);
-      font: 700 var(--step--1)/1.4 var(--sans);
-      cursor: pointer;
-    }
-    .back:hover { text-decoration: underline; }
-    .results-grid {
-      display: grid;
-      grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
-      gap: 0 3rem;
-      align-items: start;
-    }
-    .results-side { position: sticky; top: 1rem; }
-    .summary {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.25rem 1rem;
-      margin-bottom: 0.9rem;
-      color: var(--muted);
-      font-size: var(--step--1);
-    }
-    .summary.error { color: var(--arxiv); }
-    .breakdown { display: flex; flex-wrap: wrap; gap: 0.9rem; margin: 0; padding: 0; list-style: none; }
-    .breakdown li { display: flex; align-items: center; gap: 0.35rem; }
-    .swatch { width: 0.6rem; height: 0.6rem; border-radius: 50%; background: var(--src); }
+    /* Tabs (narrow screens): tracked caps with a lit underline. */
+    .tabs { display: none; }
 
-    #answer {
-      margin: 0 0 1.5rem;
-      font: 400 var(--step-1)/1.6 var(--serif);
-      white-space: pre-wrap;
-      overflow-wrap: anywhere;
-    }
+    /* ── Search view: results beside a sticky side card ── */
+    .view-grid { display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr) minmax(300px, 400px); align-items: start; }
+    .col-side { position: sticky; top: 84px; display: grid; gap: 14px; }
+    .side-h { display: flex; align-items: center; gap: 9px; margin: 0 0 10px; }
+    .side-h h2 { margin: 0; font: 700 0.78rem var(--font-mono); text-transform: uppercase; letter-spacing: 0.08em; }
+    #status { color: var(--text-muted); font-size: 0.86rem; }
+    #status.error { color: var(--bad); }
+    .breakdown { display: flex; flex-wrap: wrap; gap: 8px 14px; margin: 10px 0 0; padding: 0; list-style: none; }
+    .breakdown li { display: inline-flex; align-items: center; gap: 7px; font: 600 0.72rem var(--font-mono); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    #answer { margin: 12px 0 0; font-size: 1rem; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
     /* Citations in the answer jump to the numbered result they cite. */
     #answer .cite {
-      color: var(--accent);
-      font: 700 var(--step--1)/1 var(--sans);
-      text-decoration: none;
-      vertical-align: 0.2em;
+      color: var(--accent); font: 700 0.72rem/1 var(--font-mono); text-decoration: none; vertical-align: 0.25em;
+      text-shadow: 0 0 8px var(--accent-glow);
     }
     #answer .cite:hover { text-decoration: underline; }
 
-    #sources { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
-    .result {
-      position: relative;
-      padding: 1rem 0 1.1rem 1rem;
-      border-bottom: 1px solid var(--rule);
-      overflow-wrap: anywhere;
-      scroll-margin-top: 1rem;
-    }
-    .result::before {
-      content: "";
-      position: absolute;
-      left: 0;
-      top: 1.1rem;
-      bottom: 1.2rem;
-      width: 3px;
-      border-radius: 2px;
-      background: var(--src);
-    }
-    .result:target { background: color-mix(in srgb, var(--src) 8%, transparent); }
-    .result-source {
-      margin: 0 0 0.15rem;
-      color: var(--src);
-      font-size: var(--step--1);
-      font-weight: 700;
-    }
-    .result-num { margin-right: 0.4rem; color: var(--muted); font-weight: 500; }
-    .result h2 {
-      margin: 0;
-      font-size: var(--step-1);
-      font-weight: 700;
-      line-height: 1.3;
-      letter-spacing: -0.01em;
-    }
-    .result h2 a { text-decoration: none; }
-    .result h2 a:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+    #sources { margin: 0; padding: 0; list-style: none; }
+    #sources:empty { display: none; }
+    .result { padding: 14px 0 15px; border-bottom: 1px solid var(--border); overflow-wrap: anywhere; scroll-margin-top: 84px; }
+    .result:first-child { padding-top: 2px; }
+    .result:last-child { border-bottom: 0; }
+    .result:target { box-shadow: -18px 0 0 -16px var(--accent); }
+    .result-source { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; }
+    .result-num { font: 600 0.72rem var(--font-mono); color: var(--text-faint); }
+    .result-src { font: 700 0.7rem var(--font-mono); text-transform: uppercase; letter-spacing: 0.07em; color: var(--src); }
+    .result h3 { margin: 0; font-size: 1.05rem; font-weight: 700; line-height: 1.3; }
+    .result h3 a { text-decoration: none; }
+    .result h3 a:hover { color: var(--accent); }
     .abstract {
-      margin: 0.4rem 0 0;
-      font: 400 var(--step-0)/1.6 var(--serif);
-      display: -webkit-box;
-      -webkit-line-clamp: 3;
-      line-clamp: 3;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
+      margin: 6px 0 0; color: var(--text-muted); font-size: 0.9rem; line-height: 1.55;
+      display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
     }
-    .result .chips { margin-top: 0.55rem; }
-    .empty { padding: 1.25rem 0; color: var(--muted); }
+    .result .chips { margin-top: 8px; }
+    .empty { margin: 0; padding: 4px 0; color: var(--text-muted); }
+    .back { margin: 0 0 14px; }
 
-    footer {
-      padding-top: 2.5rem;
-      color: var(--muted);
-      font-size: var(--step--1);
-    }
+    footer { padding: 0 var(--pad-x) 22px; color: var(--text-faint); font: 0.72rem var(--font-mono); letter-spacing: 0.04em; }
 
-    /* Below 960px the three sources become tabs: one list at a time. */
-    @media (max-width: 60rem) {
-      .tabs {
-        display: flex;
-        gap: 0.25rem;
-        margin: 0 0 0.75rem;
-        border-bottom: 1px solid var(--rule);
+    /* Below 1020px: one column for search; the three sources become tabs. */
+    @media (max-width: 1020px) {
+      .view-grid { grid-template-columns: minmax(0, 1fr); }
+      .col-side { position: static; order: -1; }
+      .tabs { display: flex; gap: 22px; margin: 0 0 14px; border-bottom: 1px solid var(--border); overflow-x: auto; }
+      .tab {
+        display: flex; align-items: center; gap: 8px; padding: 11px 1px 12px; margin-bottom: -1px;
+        background: none; border: 0; border-bottom: 2px solid transparent; border-radius: 0;
+        color: var(--text-faint); font: 600 0.76rem var(--font-mono); text-transform: uppercase; letter-spacing: 0.08em;
       }
-      .tabs button {
-        flex: 1;
-        margin-bottom: -1px;
-        border: 0;
-        border-bottom: 3px solid transparent;
-        padding: 0.55rem 0.25rem;
-        background: none;
-        color: var(--muted);
-        font: 700 var(--step--1)/1.3 var(--sans);
-        cursor: pointer;
-      }
-      .tabs button[aria-selected="true"] { color: var(--src); border-bottom-color: var(--src); }
-      .tabs .count { display: block; font-weight: 400; }
-      #query { font-size: var(--step-1); }
-      #submit-btn { margin-bottom: 0.3rem; }
+      .tab:hover { background: none; box-shadow: none; color: var(--text-muted); }
+      .tab[aria-selected="true"] { color: var(--text); border-bottom-color: var(--src); box-shadow: 0 7px 10px -9px var(--src); }
+      .tab .n { color: var(--src); font-variant-numeric: tabular-nums; }
+      .tab:focus-visible { outline-offset: -2px; }
       .daily-grid { display: block; }
-      .col { border-top: 0; padding-top: 0; }
-      .col:not(.active) { display: none; }
-      .col-head h3 { display: none; }
-      .results-grid { display: block; }
-      .results-side { position: static; }
+      .daily-grid > .card:not(.active) { display: none; }
+      .col-head { display: none; }
     }
-    @media (max-width: 38rem) {
-      :root { --gutter: 1rem; }
-      .wrap { padding-top: 1.1rem; }
-      .top { grid-template-columns: minmax(0, 1fr); gap: 0.6rem; }
-      .wordmark { padding-bottom: 0; font-size: var(--step-1); }
-      .ask-row { flex-direction: column; align-items: stretch; gap: 0.6rem; }
-      #query { font-size: var(--step-1); }
-      #submit-btn { margin-bottom: 0; padding: 0.8rem 1.25rem; }
-      .index-note { margin-bottom: 1.25rem; }
-      .abstract { -webkit-line-clamp: 2; line-clamp: 2; }
-      #answer { font-size: 1.1rem; }
+    @media (max-width: 640px) {
+      .appbar-in { flex-wrap: wrap; row-gap: 10px; }
+      .brand { order: 1; }
+      .theme-btn { order: 2; margin-left: auto; }
+      .search { order: 3; flex-basis: 100%; }
+      .tabs { gap: 14px; }
+      .tab { font-size: 0.7rem; letter-spacing: 0.04em; }
+      .card { padding: 14px; }
     }
     @media (prefers-reduced-motion: reduce) {
-      * { scroll-behavior: auto !important; transition: none !important; }
-      /* Keep a static indicator instead of the sweep. */
-      .busy .field::after { animation: none; left: 0; width: 100%; opacity: 0.5; }
+      * { transition: none !important; }
+      .busy .field::after { animation: none; left: 0; width: 100%; opacity: 0.6; }
     }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <form id="search-form" class="top" role="search">
-        <p class="wordmark"><a href="/" id="home-link">AI Data Boon</a></p>
-        <div class="ask-row">
-          <div class="field">
-            <textarea
-              id="query"
-              rows="1"
-              placeholder="Search Hacker News, arXiv and GitHub"
-              aria-label="Search Hacker News, arXiv and GitHub"
-              autocomplete="off"
-              enterkeyhint="search"
-              maxlength="500"
-              required
-            ></textarea>
-          </div>
-          <button type="submit" id="submit-btn">Search</button>
+  <header class="appbar">
+    <div class="appbar-in">
+      <a href="/" class="brand" id="home-link" aria-label="AI Data Boon, today's results">AI Data Boon</a>
+      <form id="search-form" class="search" role="search">
+        <div class="field">
+          <label for="query" class="sr-only">Search Hacker News, arXiv and GitHub</label>
+          <textarea id="query" rows="1" placeholder="Search Hacker News, arXiv and GitHub" autocomplete="off" enterkeyhint="search" maxlength="500" required></textarea>
         </div>
+        <button type="submit" id="submit-btn">Search</button>
       </form>
-      <p id="index-note" class="index-note"></p>
-    </header>
+      <button type="button" class="icon-btn theme-btn" id="theme-btn" aria-label="Switch to light mode" title="Switch to light mode"></button>
+    </div>
+  </header>
 
-    <main>
-      <!-- Default view: the latest daily batch per source. -->
-      <section id="dashboard" aria-labelledby="today-title">
-        <h2 class="section-title" id="today-title">Today's results</h2>
-        <div class="tabs" role="tablist" aria-label="Sources">
-          <button type="button" role="tab" class="src-hackernews" data-src="hackernews" aria-selected="true" aria-controls="col-hackernews" id="tab-hackernews">Hacker News<span class="count"></span></button>
-          <button type="button" role="tab" class="src-arxiv" data-src="arxiv" aria-selected="false" aria-controls="col-arxiv" id="tab-arxiv" tabindex="-1">arXiv<span class="count"></span></button>
-          <button type="button" role="tab" class="src-github" data-src="github" aria-selected="false" aria-controls="col-github" id="tab-github" tabindex="-1">GitHub<span class="count"></span></button>
-        </div>
-        <div class="daily-grid">
-          <section class="col src-hackernews active" id="col-hackernews" role="tabpanel" aria-labelledby="tab-hackernews">
-            <div class="col-head"><h3>Hacker News</h3><p class="col-sub"></p></div>
-            <ul class="daily-list"></ul>
-            <p class="col-status">Loading…</p>
-          </section>
-          <section class="col src-arxiv" id="col-arxiv" role="tabpanel" aria-labelledby="tab-arxiv">
-            <div class="col-head"><h3>New on arXiv</h3><p class="col-sub"></p></div>
-            <ul class="daily-list"></ul>
-            <p class="col-status">Loading…</p>
-          </section>
-          <section class="col src-github" id="col-github" role="tabpanel" aria-labelledby="tab-github">
-            <div class="col-head"><h3>Trending on GitHub</h3><p class="col-sub"></p></div>
-            <ul class="daily-list"></ul>
-            <p class="col-status">Loading…</p>
-            <div class="topics" id="topics" hidden>
-              <h4>Common topics</h4>
-              <ul class="chips"></ul>
-            </div>
-          </section>
-        </div>
-      </section>
-
-      <!-- Search view -->
-      <section id="search-view" hidden aria-label="Search results">
-        <button type="button" class="back" id="back-btn">Back to today's results</button>
-        <div class="results-grid">
-          <div class="results-side">
-            <div id="status" class="summary" role="status" aria-live="polite"></div>
-            <div id="answer" hidden></div>
+  <main>
+    <!-- Default view: the latest daily batch per source. -->
+    <section id="dashboard" aria-labelledby="today-title">
+      <div class="page-head">
+        <h1 id="today-title">Today's results</h1>
+        <p id="index-note" class="label"></p>
+      </div>
+      <div class="tabs" role="tablist" aria-label="Sources">
+        <button type="button" role="tab" class="tab src-hackernews" data-src="hackernews" aria-selected="true" aria-controls="col-hackernews" id="tab-hackernews"><span class="marker"></span>Hacker News <span class="n"></span></button>
+        <button type="button" role="tab" class="tab src-arxiv" data-src="arxiv" aria-selected="false" aria-controls="col-arxiv" id="tab-arxiv" tabindex="-1"><span class="marker"></span>arXiv <span class="n"></span></button>
+        <button type="button" role="tab" class="tab src-github" data-src="github" aria-selected="false" aria-controls="col-github" id="tab-github" tabindex="-1"><span class="marker"></span>GitHub <span class="n"></span></button>
+      </div>
+      <div class="daily-grid">
+        <section class="card src-hackernews active" id="col-hackernews" role="tabpanel" aria-labelledby="tab-hackernews">
+          <div class="col-head"><span class="marker"></span><h2>Hacker News</h2><span class="col-count"></span></div>
+          <p class="col-sub label"></p>
+          <ul class="daily-list"></ul>
+          <p class="col-status">Loading…</p>
+          <div class="col-foot"></div>
+        </section>
+        <section class="card src-arxiv" id="col-arxiv" role="tabpanel" aria-labelledby="tab-arxiv">
+          <div class="col-head"><span class="marker"></span><h2>New on arXiv</h2><span class="col-count"></span></div>
+          <p class="col-sub label"></p>
+          <ul class="daily-list"></ul>
+          <p class="col-status">Loading…</p>
+          <div class="col-foot"></div>
+        </section>
+        <section class="card src-github" id="col-github" role="tabpanel" aria-labelledby="tab-github">
+          <div class="col-head"><span class="marker"></span><h2>Trending on GitHub</h2><span class="col-count"></span></div>
+          <p class="col-sub label"></p>
+          <ul class="daily-list"></ul>
+          <p class="col-status">Loading…</p>
+          <div class="col-foot"></div>
+          <div class="topics" id="topics" hidden>
+            <p class="label">Common topics</p>
+            <ul class="chips"></ul>
           </div>
-          <ol id="sources" hidden></ol>
-        </div>
-      </section>
-    </main>
+        </section>
+      </div>
+    </section>
 
-    <footer>&copy; 2026 BoonCore</footer>
-  </div>
+    <!-- Search view -->
+    <section id="search-view" hidden aria-label="Search results">
+      <button type="button" class="link-btn back" id="back-btn">Back to today's results</button>
+      <div class="view-grid">
+        <div class="card">
+          <ol id="sources"></ol>
+          <p id="results-empty" class="empty" hidden></p>
+        </div>
+        <aside class="col-side">
+          <div class="card">
+            <div class="side-h"><span class="marker"></span><h2>Answer</h2></div>
+            <div id="status" role="status" aria-live="polite"></div>
+            <p id="answer" hidden></p>
+          </div>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <footer>&copy; 2026 BoonCore</footer>
 
   <script>
     const API_BASE = "https://api.aidataboon.com/v1";
@@ -489,6 +396,7 @@
     const statusEl = document.getElementById("status");
     const answerEl = document.getElementById("answer");
     const sourcesEl = document.getElementById("sources");
+    const resultsEmptyEl = document.getElementById("results-empty");
     const submitBtn = document.getElementById("submit-btn");
     const indexNoteEl = document.getElementById("index-note");
     const dashboardEl = document.getElementById("dashboard");
@@ -498,6 +406,32 @@
     const compactFmt = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 });
     const dateFmt = new Intl.DateTimeFormat("en", { year: "numeric", month: "short", day: "numeric" });
     const shortDateFmt = new Intl.DateTimeFormat("en", { month: "short", day: "numeric" });
+
+    // ── Theme: dark by default, light on request, remembered per browser ──
+
+    const ICONS = {
+      sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
+      moon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>',
+    };
+    const themeBtn = document.getElementById("theme-btn");
+    function themeNow() {
+      return document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
+    }
+    function paintThemeButton() {
+      const next = themeNow() === "light" ? "dark" : "light";
+      const label = `Switch to ${next} mode`;
+      themeBtn.innerHTML = next === "light" ? ICONS.sun : ICONS.moon;
+      themeBtn.setAttribute("aria-label", label);
+      themeBtn.title = label;
+    }
+    function setTheme(next) {
+      document.documentElement.setAttribute("data-theme", next);
+      try { localStorage.setItem("adb_theme", next); } catch (_) {}
+      document.querySelector('meta[name="theme-color"]').setAttribute("content", next === "light" ? "#eef1f6" : "#070a12");
+      paintThemeButton();
+    }
+    themeBtn.addEventListener("click", () => setTheme(themeNow() === "light" ? "dark" : "light"));
+    paintThemeButton();
 
     // ── Small helpers ──────────────────────────────────────────────────────
 
@@ -592,7 +526,7 @@
       const score = toInt(src.score);
       const comments = toInt(src.num_comments);
       if (src.source === "hackernews") {
-        if (score) items.push(plural(score, "point", "points"));
+        if (score) items.push(plural(score, "pt", "pts"));
         const url = hnDiscussionUrl(src);
         if (url) {
           items.push(el("a", { href: url, target: "_blank", rel: "noopener", textContent: plural(comments, "comment", "comments") }));
@@ -600,10 +534,10 @@
         if (!compact && src.author) items.push(`by ${src.author}`);
         if (src.published_at) items.push(compact ? formatShortDate(src.published_at) : formatDate(src.published_at));
       } else if (src.source === "github") {
-        if (score) items.push(compact ? `${compactFmt.format(score)} stars` : plural(score, "star", "stars"));
+        if (score) items.push(`★ ${compact ? compactFmt.format(score) : numberFmt.format(score)}`);
         if (comments && !compact) items.push(plural(comments, "fork", "forks"));
         // A repo's date is its creation date.
-        if (src.published_at && !compact) items.push(`Created ${formatDate(src.published_at)}`);
+        if (src.published_at && !compact) items.push(`created ${formatDate(src.published_at)}`);
       } else {
         if (src.author) items.push(formatAuthors(src.author));
         if (src.published_at && !compact) items.push(formatDate(src.published_at));
@@ -618,26 +552,29 @@
       li.append(el("a", { className: "t", href: src.url || "#", target: "_blank", rel: "noopener", textContent: src.title || "Untitled" }));
       // HN self-posts and arXiv abstracts are long; repo descriptions are the point.
       const desc = plainText(src.abstract);
-      if (desc && src.source !== "hackernews") li.append(el("p", { className: "d", textContent: desc }));
+      if (desc && desc !== src.title && src.source !== "hackernews") li.append(el("p", { className: "d", textContent: desc }));
       const meta = metaItems(src, { compact: true });
       if (meta.length) li.append(el("ul", { className: "meta" }, meta.map((m) => el("li", {}, m))));
       return li;
     }
 
     function colSubtitle(key, info) {
-      const n = info.count;
-      if (key === "hackernews") return `${plural(n, "story", "stories")} by points${info.newest ? `, ${formatRange(info.oldest, info.newest)}` : ""}`;
-      if (key === "arxiv") return `${plural(n, "paper", "papers")}, newest first${info.newest ? `, ${formatRange(info.oldest, info.newest)}` : ""}`;
-      return `${plural(n, "repo", "repos")} by stars`;
+      const range = info.newest ? `, ${formatRange(info.oldest, info.newest)}` : "";
+      if (key === "hackernews") return `By points${range}`;
+      if (key === "arxiv") return `Newest first${range}`;
+      return "By stars";
     }
 
     function renderColumn(key, info) {
       const col = document.getElementById(`col-${key}`);
       const list = col.querySelector(".daily-list");
       const status = col.querySelector(".col-status");
+      const foot = col.querySelector(".col-foot");
       col.querySelector(".col-sub").textContent = colSubtitle(key, info);
-      document.querySelector(`#tab-${key} .count`).textContent = numberFmt.format(info.count);
+      col.querySelector(".col-count").textContent = numberFmt.format(info.count);
+      document.querySelector(`#tab-${key} .n`).textContent = numberFmt.format(info.count);
       list.replaceChildren(...info.items.map(dailyItem));
+      foot.replaceChildren();
       if (!info.items.length) {
         status.textContent = "Nothing in today's batch.";
         return;
@@ -646,16 +583,15 @@
       const hidden = [...list.children].slice(DAILY_SHOWN);
       if (hidden.length) {
         hidden.forEach((li) => (li.hidden = true));
-        const more = el("button", { type: "button", className: "more", textContent: `Show ${hidden.length} more` });
+        const more = el("button", { type: "button", className: "link-btn", textContent: `Show ${hidden.length} more` });
         more.addEventListener("click", () => {
           hidden.forEach((li) => (li.hidden = false));
           more.remove();
           if (info.count > info.items.length) {
-            status.textContent = `Top ${info.items.length} of ${numberFmt.format(info.count)} shown. Search to find the rest.`;
-            status.hidden = false;
+            foot.append(el("span", { className: "label", textContent: `Top ${info.items.length} of ${numberFmt.format(info.count)}. Search to find the rest.` }));
           }
         });
-        list.after(more);
+        foot.append(more);
       }
     }
 
@@ -663,7 +599,7 @@
       if (!topics || !topics.length) return;
       const box = document.getElementById("topics");
       box.querySelector(".chips").replaceChildren(...topics.map((t) => {
-        const b = el("button", { type: "button", textContent: t.topic, title: `Search for ${t.topic}` });
+        const b = el("button", { type: "button", className: "chip", textContent: t.topic, title: `Search for ${t.topic}` });
         b.addEventListener("click", () => runSearch(`Trending repos about ${t.topic}`));
         return el("li", {}, b);
       }));
@@ -677,7 +613,7 @@
             s.textContent = `The service is starting up. Trying again in ${secs} seconds…`;
           }
         });
-        if (data.data_as_of) indexNoteEl.textContent = `Refreshed daily. Newest item from ${formatDate(data.data_as_of)}.`;
+        if (data.data_as_of) indexNoteEl.textContent = `Refreshed daily. Newest ${formatDate(data.data_as_of)}`;
         for (const key of Object.keys(SOURCES)) {
           if (data.sources && data.sources[key]) renderColumn(key, data.sources[key]);
         }
@@ -689,7 +625,7 @@
       }
     }
 
-    // Tabs (below 960px): one source at a time, arrow keys move between them.
+    // Tabs (narrow screens): one source at a time, arrow keys move between them.
     const tabs = [...document.querySelectorAll('[role="tab"]')];
     function selectTab(tab) {
       for (const t of tabs) {
@@ -747,11 +683,14 @@
       const key = SOURCES[src.source] ? src.source : "other";
       const li = el("li", { className: `result src-${key}`, id: `result-${n}` });
 
-      const num = el("span", { className: "result-num", textContent: `[${n}]` });
-      li.append(el("p", { className: "result-source" }, [num, SOURCES[src.source] || src.source || "Source"]));
+      li.append(el("p", { className: "result-source" }, [
+        el("span", { className: "result-num", textContent: `[${n}]` }),
+        el("span", { className: "marker" }),
+        el("span", { className: "result-src", textContent: SOURCES[src.source] || src.source || "Source" }),
+      ]));
 
       const title = el("a", { href: src.url || "#", target: "_blank", rel: "noopener", textContent: src.title || src.id || "Untitled" });
-      li.append(el("h2", {}, title));
+      li.append(el("h3", {}, title));
 
       const abstract = plainText(src.abstract || src.content);
       if (abstract && abstract !== src.title) {
@@ -765,7 +704,7 @@
 
       const tags = src.source === "github" ? parseTags(src.tags).slice(0, 5) : [];
       if (tags.length) {
-        li.append(el("ul", { className: "chips", ariaLabel: "Topics" }, tags.map((t) => el("li", { className: "tag", textContent: t }))));
+        li.append(el("ul", { className: "chips", ariaLabel: "Topics" }, tags.map((t) => el("li", { className: "chip", textContent: t }))));
       }
       return li;
     }
@@ -793,7 +732,7 @@
     }
 
     function setStatus(text, isError = false) {
-      statusEl.className = isError ? "summary error" : "summary";
+      statusEl.className = isError ? "error" : "";
       statusEl.textContent = text;
     }
 
@@ -804,20 +743,19 @@
 
     function renderSummary(data) {
       const sources = data.sources || [];
-      statusEl.className = "summary";
+      statusEl.className = "";
       statusEl.replaceChildren();
       let count = `${plural(sources.length, "result", "results")} in ${numberFmt.format(Math.round(data.took_ms || 0))} ms`;
       if (data.time_window) count += `, from the ${data.time_window.label}`;
       const note = freshnessNote(data);
-      statusEl.append(el("span", { textContent: note ? `${count}. ${note}` : count }));
+      statusEl.append(el("span", { textContent: note ? `${count}. ${note}.` : `${count}.` }));
 
       const bySource = {};
       for (const s of sources) bySource[s.source] = (bySource[s.source] || 0) + 1;
       const breakdown = el("ul", { className: "breakdown", ariaLabel: "Results by source" });
       for (const [key, label] of Object.entries(SOURCES)) {
         if (!bySource[key]) continue;
-        const swatch = el("span", { className: "swatch" });
-        breakdown.append(el("li", { className: `src-${key}` }, [swatch, `${label} ${bySource[key]}`]));
+        breakdown.append(el("li", { className: `src-${key}` }, [el("span", { className: "marker" }), `${label} ${bySource[key]}`]));
       }
       statusEl.append(breakdown);
     }
@@ -836,7 +774,7 @@
       answerEl.hidden = true;
       answerEl.replaceChildren();
       sourcesEl.replaceChildren();
-      sourcesEl.hidden = true;
+      resultsEmptyEl.hidden = true;
 
       try {
         const data = await fetchWithWake(`${API_BASE}/search`, {
@@ -852,17 +790,16 @@
         }
 
         if (!sources.length) {
-          setStatus("");
           const note = freshnessNote(data);
-          const message = data.time_window
-            ? `Nothing from the ${data.time_window.label}.${note ? ` ${note}.` : ""} Try the same search without the time range.`
-            : "No matches. Try fewer or broader words.";
-          sourcesEl.append(el("li", { className: "empty", textContent: message }));
+          setStatus(data.time_window ? `Nothing from the ${data.time_window.label}.${note ? ` ${note}.` : ""}` : "No matches.");
+          resultsEmptyEl.textContent = data.time_window
+            ? "Try the same search without the time range."
+            : "Try fewer or broader words.";
+          resultsEmptyEl.hidden = false;
         } else {
           newestFirst(sources).forEach((src, i) => sourcesEl.append(renderResult(src, i + 1)));
           renderSummary(data);
         }
-        sourcesEl.hidden = false;
       } catch (err) {
         setStatus(`Search failed: ${describeError(err)}. Try again in a minute.`, true);
       } finally {
@@ -895,7 +832,7 @@
     // fit its text and stays a single logical line.
     function autosize() {
       input.style.height = "auto";
-      input.style.height = `${input.scrollHeight}px`;
+      input.style.height = `${input.scrollHeight + 2}px`; // + top and bottom border
     }
 
     function setQuery(text) {
@@ -957,6 +894,7 @@
 
     // The dashboard always loads (it also wakes the API); a shared ?q= link
     // opens straight on its search.
+    autosize();
     loadDaily();
     const initial = new URLSearchParams(window.location.search).get("q");
     if (initial) {
