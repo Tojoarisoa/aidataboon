@@ -6,6 +6,14 @@
   <title>AIDataBoon — AI-Powered Data Infrastructure Search</title>
   <meta name="description" content="Natural-language search over Hacker News, arXiv, and GitHub trending — powered by a RAG pipeline on a medallion lakehouse." />
   <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#eef2f5" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#121922" media="(prefers-color-scheme: dark)" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://aidataboon.com/" />
+  <meta property="og:title" content="AIDataBoon" />
+  <meta property="og:description" content="Search recent Hacker News threads, arXiv papers and trending GitHub repositories in plain English." />
+  <!-- One dot per source (HN, arXiv, GitHub) under the search underline. -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2316202e'/%3E%3Crect x='6' y='19' width='20' height='3' rx='1.5' fill='%234fc3b5'/%3E%3Ccircle cx='9' cy='12' r='2.6' fill='%23f08a3e'/%3E%3Ccircle cx='16' cy='12' r='2.6' fill='%23e66a70'/%3E%3Ccircle cx='23' cy='12' r='2.6' fill='%23a094f5'/%3E%3C/svg%3E" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" />
@@ -59,10 +67,14 @@
       -webkit-font-smoothing: antialiased;
     }
     .wrap {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
       max-width: 44rem;
       margin: 0 auto;
-      padding: 2.5rem 1rem 3rem;
+      padding: 2.5rem 1rem 2rem;
     }
+    main { flex: 1; }
     a { color: inherit; }
     :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
 
@@ -79,6 +91,12 @@
       max-width: 36rem;
       color: var(--muted);
     }
+    .index-note {
+      margin: 0.5rem 0 0;
+      color: var(--muted);
+      font-size: var(--step--1);
+    }
+    .index-note:empty { display: none; }
 
     /* The question is the hero: set like a headline, typed into directly. */
     .ask { margin-bottom: 1rem; }
@@ -89,26 +107,55 @@
     }
     .ask-row {
       display: flex;
-      align-items: stretch;
-      gap: 0.75rem;
-      border-bottom: 3px solid var(--ink);
-      padding-bottom: 0.25rem;
+      align-items: flex-end;
+      gap: 1rem;
     }
-    .ask-row:focus-within { border-bottom-color: var(--accent); }
-    #query {
+    /* The heavy underline doubles as the progress bar while searching. */
+    .field {
+      position: relative;
       flex: 1;
       min-width: 0;
+      border-bottom: 3px solid var(--ink);
+    }
+    .field:focus-within { border-bottom-color: var(--accent); }
+    .field::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      bottom: -3px;
+      width: 30%;
+      height: 3px;
+      background: var(--accent);
+      opacity: 0;
+    }
+    .busy .field { border-bottom-color: var(--rule); }
+    .busy .field::after {
+      opacity: 1;
+      animation: sweep 1.1s ease-in-out infinite alternate;
+    }
+    @keyframes sweep {
+      from { left: 0; }
+      to { left: 70%; }
+    }
+    /* A textarea so long questions wrap like a headline instead of
+       scrolling out of view; it grows with its content (see autosize()). */
+    #query {
+      display: block;
+      width: 100%;
       border: 0;
       background: transparent;
       color: var(--ink);
       font: 500 var(--step-3)/1.2 var(--sans);
       letter-spacing: -0.02em;
-      padding: 0.25rem 0;
+      padding: 0.25rem 0 0.35rem;
+      resize: none;
+      overflow: hidden;
     }
     #query::placeholder { color: var(--muted); opacity: 0.7; }
     #query:focus { outline: none; }
     #submit-btn {
-      align-self: center;
+      flex: none;
+      margin-bottom: 0.45rem;
       border: 0;
       border-radius: 999px;
       background: var(--accent);
@@ -120,13 +167,19 @@
     #submit-btn:disabled { opacity: 0.6; cursor: progress; }
 
     .examples {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: baseline;
-      gap: 0.25rem 1rem;
       margin: 0 0 2.25rem;
       color: var(--muted);
       font-size: var(--step--1);
+    }
+    .examples[hidden] { display: none; }
+    .examples p { margin: 0 0 0.3rem; }
+    .examples ul {
+      display: grid;
+      gap: 0.3rem;
+      justify-items: start;
+      margin: 0;
+      padding: 0;
+      list-style: none;
     }
     .examples button {
       border: 0;
@@ -152,6 +205,7 @@
       color: var(--muted);
       font-size: var(--step--1);
     }
+    .examples[hidden] + .summary { margin-top: 1.5rem; }
     .summary.error { color: var(--arxiv); }
     .breakdown { display: flex; gap: 0.9rem; margin: 0; padding: 0; list-style: none; }
     .breakdown li { display: flex; align-items: center; gap: 0.35rem; }
@@ -195,6 +249,7 @@
     }
     .result h2 {
       margin: 0;
+      max-width: 38rem;
       font-size: var(--step-1);
       font-weight: 700;
       line-height: 1.3;
@@ -208,6 +263,7 @@
       font: 400 var(--step-0)/1.6 var(--serif);
       display: -webkit-box;
       -webkit-line-clamp: 3;
+      line-clamp: 3;
       -webkit-box-orient: vertical;
       overflow: hidden;
     }
@@ -235,7 +291,7 @@
     .empty { padding: 1.5rem 0; color: var(--muted); }
 
     footer {
-      margin-top: 3rem;
+      padding-top: 3rem;
       color: var(--muted);
       font-size: var(--step--1);
     }
@@ -243,14 +299,15 @@
     @media (max-width: 34rem) {
       .wrap { padding-top: 1.75rem; }
       #query { font-size: var(--step-2); }
-      .ask-row { flex-wrap: wrap; border-bottom: 0; padding-bottom: 0; }
-      #query { flex-basis: 100%; border-bottom: 3px solid var(--ink); }
-      #query:focus { border-bottom-color: var(--accent); }
-      #submit-btn { width: 100%; margin-top: 0.75rem; }
+      .ask-row { flex-direction: column; align-items: stretch; gap: 0.75rem; }
+      #submit-btn { margin-bottom: 0; padding: 0.85rem 1.25rem; }
       .summary { flex-direction: column; }
+      .abstract { -webkit-line-clamp: 2; line-clamp: 2; }
     }
     @media (prefers-reduced-motion: reduce) {
       * { scroll-behavior: auto !important; transition: none !important; }
+      /* Keep a static indicator instead of the sweep. */
+      .busy .field::after { animation: none; left: 0; width: 100%; opacity: 0.5; }
     }
   </style>
 </head>
@@ -262,29 +319,35 @@
         Search recent Hacker News threads, arXiv papers and trending GitHub
         repositories in plain English.
       </p>
+      <p id="index-note" class="index-note"></p>
     </header>
 
     <main>
       <form id="search-form" class="ask" role="search">
         <label for="query">What do you want to find?</label>
         <div class="ask-row">
-          <input
-            id="query"
-            type="search"
-            placeholder="Papers about LLM fine-tuning"
-            autocomplete="off"
-            enterkeyhint="search"
-            required
-          />
+          <div class="field">
+            <textarea
+              id="query"
+              rows="1"
+              placeholder="Papers about LLM fine-tuning"
+              autocomplete="off"
+              enterkeyhint="search"
+              maxlength="500"
+              required
+            ></textarea>
+          </div>
           <button type="submit" id="submit-btn">Search</button>
         </div>
       </form>
 
-      <div class="examples">
-        <span>Try</span>
-        <button type="button" data-q="Papers about LLM fine-tuning">Papers about LLM fine-tuning</button>
-        <button type="button" data-q="What is Hacker News saying about Rust?">What is Hacker News saying about Rust?</button>
-        <button type="button" data-q="Top 5 trending repos for AI agents">Top 5 trending repos for AI agents</button>
+      <div class="examples" id="examples">
+        <p>Try one of these:</p>
+        <ul>
+          <li><button type="button" data-q="Papers about LLM fine-tuning">Papers about LLM fine-tuning</button></li>
+          <li><button type="button" data-q="What is Hacker News saying this week?">What is Hacker News saying this week?</button></li>
+          <li><button type="button" data-q="Top 5 trending repos for AI agents">Top 5 trending repos for AI agents</button></li>
+        </ul>
       </div>
 
       <div id="status" class="summary" role="status" aria-live="polite"></div>
@@ -310,6 +373,8 @@
     const answerEl = document.getElementById("answer");
     const sourcesEl = document.getElementById("sources");
     const submitBtn = document.getElementById("submit-btn");
+    const examplesEl = document.getElementById("examples");
+    const indexNoteEl = document.getElementById("index-note");
 
     const numberFmt = new Intl.NumberFormat("en");
     const dateFmt = new Intl.DateTimeFormat("en", { year: "numeric", month: "short", day: "numeric" });
@@ -475,6 +540,8 @@
 
     async function search(query) {
       submitBtn.disabled = true;
+      form.classList.add("busy");
+      examplesEl.hidden = true;
       setStatus("Searching…");
       answerEl.style.display = "none";
       answerEl.textContent = "";
@@ -532,11 +599,47 @@
         }
         sourcesEl.hidden = false;
       } catch (err) {
-        setStatus(`Search failed: ${err.message}. Try again in a minute.`, true);
+        // fetch() rejects with a TypeError when the request never got a response.
+        const reason = err instanceof TypeError ? "couldn't reach the search service" : err.message;
+        setStatus(`Search failed: ${reason}. Try again in a minute.`, true);
       } finally {
         submitBtn.disabled = false;
+        form.classList.remove("busy");
       }
     }
+
+    // The question box is a textarea so long questions wrap; it grows to
+    // fit its text and stays a single logical line.
+    function autosize() {
+      input.style.height = "auto";
+      input.style.height = `${input.scrollHeight}px`;
+    }
+
+    function setQuery(text) {
+      input.value = text;
+      autosize();
+    }
+
+    input.addEventListener("input", () => {
+      if (input.value.includes("\n")) {
+        const end = input.selectionEnd;
+        input.value = input.value.replace(/\s*\n\s*/g, " ");
+        input.setSelectionRange(end, end);
+      }
+      autosize();
+      if (!input.value.trim()) examplesEl.hidden = false;
+    });
+
+    // Enter searches, as in a single-line field.
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
+        e.preventDefault();
+        form.requestSubmit();
+      }
+    });
+
+    window.addEventListener("resize", autosize);
+    document.fonts?.ready.then(autosize);
 
     form.addEventListener("submit", (e) => {
       e.preventDefault();
@@ -546,10 +649,24 @@
 
     for (const btn of document.querySelectorAll(".examples button")) {
       btn.addEventListener("click", () => {
-        input.value = btn.dataset.q;
+        setQuery(btn.dataset.q);
         search(btn.dataset.q);
       });
     }
+
+    // Say what is in the index before anyone searches. This also wakes the
+    // API from its idle state, so the first search is faster.
+    fetch(`${API_BASE}/health`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((health) => {
+        if (!health || !health.documents_indexed) return;
+        const count = plural(health.documents_indexed, "item", "items");
+        const asOf = health.data_as_of ? formatDate(health.data_as_of) : "";
+        indexNoteEl.textContent = asOf
+          ? `${count} indexed, refreshed daily. Newest from ${asOf}.`
+          : `${count} indexed.`;
+      })
+      .catch(() => {});
 
     // "/" jumps to the search box from anywhere on the page.
     document.addEventListener("keydown", (e) => {
@@ -563,7 +680,7 @@
     // Shared links (?q=...) run their search on load.
     const initial = new URLSearchParams(window.location.search).get("q");
     if (initial) {
-      input.value = initial;
+      setQuery(initial);
       search(initial);
     }
   </script>
