@@ -5,119 +5,304 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>AIDataBoon — AI-Powered Data Infrastructure Search</title>
   <meta name="description" content="Natural-language search over Hacker News, arXiv, and GitHub trending — powered by a RAG pipeline on a medallion lakehouse." />
+  <meta name="color-scheme" content="light dark" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" />
   <style>
     :root {
-      --bg: #0b0f17;
-      --panel: #131a26;
-      --border: #232c3d;
-      --text: #e6edf3;
-      --muted: #8b97a8;
-      --accent: #5b8cff;
+      --page: #eef2f5;
+      --ink: #16202e;
+      --muted: #566173;
+      --rule: #cfd7df;
+      --field: #ffffff;
+      --accent: #0a7c72;
+      --accent-ink: #ffffff;
+      --hn: #ad4a08;
+      --arxiv: #a8232a;
+      --github: #5946c9;
+
+      --sans: "Schibsted Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+      --serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+
+      /* 1.25 scale on a 17px base */
+      --step--1: 0.8rem;
+      --step-0: 1rem;
+      --step-1: 1.25rem;
+      --step-2: 1.563rem;
+      --step-3: 1.953rem;
     }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --page: #121922;
+        --ink: #e3e9ef;
+        --muted: #9aa6b5;
+        --rule: #2b3644;
+        --field: #19222d;
+        --accent: #4fc3b5;
+        --accent-ink: #0c1a19;
+        --hn: #f08a3e;
+        --arxiv: #e66a70;
+        --github: #a094f5;
+      }
+    }
+
     * { box-sizing: border-box; }
+    html { font-size: 106.25%; } /* 17px */
     body {
       margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 48px 16px;
+      background: var(--page);
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: var(--step-0);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
     }
-    header { text-align: center; margin-bottom: 32px; max-width: 640px; }
-    h1 { font-size: 1.8rem; margin: 0 0 8px; }
-    p.subtitle { color: var(--muted); margin: 0; font-size: 0.95rem; }
-    form {
-      width: 100%;
-      max-width: 640px;
-      display: flex;
-      gap: 8px;
-      margin-bottom: 24px;
+    .wrap {
+      max-width: 44rem;
+      margin: 0 auto;
+      padding: 2.5rem 1rem 3rem;
     }
-    input[type="text"] {
+    a { color: inherit; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+
+    /* Masthead */
+    .masthead { margin-bottom: 2.25rem; }
+    .wordmark {
+      margin: 0;
+      font-size: var(--step-1);
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+    .lede {
+      margin: 0.35rem 0 0;
+      max-width: 36rem;
+      color: var(--muted);
+    }
+
+    /* The question is the hero: set like a headline, typed into directly. */
+    .ask { margin-bottom: 1rem; }
+    .ask label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+    }
+    .ask-row {
+      display: flex;
+      align-items: stretch;
+      gap: 0.75rem;
+      border-bottom: 3px solid var(--ink);
+      padding-bottom: 0.25rem;
+    }
+    .ask-row:focus-within { border-bottom-color: var(--accent); }
+    #query {
       flex: 1;
-      padding: 12px 16px;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-      background: var(--panel);
-      color: var(--text);
-      font-size: 1rem;
+      min-width: 0;
+      border: 0;
+      background: transparent;
+      color: var(--ink);
+      font: 500 var(--step-3)/1.2 var(--sans);
+      letter-spacing: -0.02em;
+      padding: 0.25rem 0;
     }
-    input[type="text"]:focus { outline: 2px solid var(--accent); }
-    button {
-      padding: 12px 20px;
-      border-radius: 8px;
-      border: none;
+    #query::placeholder { color: var(--muted); opacity: 0.7; }
+    #query:focus { outline: none; }
+    #submit-btn {
+      align-self: center;
+      border: 0;
+      border-radius: 999px;
       background: var(--accent);
-      color: white;
-      font-size: 1rem;
+      color: var(--accent-ink);
+      font: 700 var(--step-0)/1 var(--sans);
+      padding: 0.75rem 1.25rem;
       cursor: pointer;
     }
-    button:disabled { opacity: 0.6; cursor: progress; }
-    #status { color: var(--muted); font-size: 0.9rem; margin-bottom: 16px; min-height: 1.2em; }
+    #submit-btn:disabled { opacity: 0.6; cursor: progress; }
+
+    .examples {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 0.25rem 1rem;
+      margin: 0 0 2.25rem;
+      color: var(--muted);
+      font-size: var(--step--1);
+    }
+    .examples button {
+      border: 0;
+      padding: 0;
+      background: none;
+      color: var(--ink);
+      font: inherit;
+      text-decoration: underline;
+      text-decoration-color: var(--rule);
+      text-underline-offset: 3px;
+      cursor: pointer;
+    }
+    .examples button:hover { text-decoration-color: var(--accent); }
+
+    /* Status line + per-source breakdown */
+    .summary {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 0.25rem 1rem;
+      min-height: 1.5em;
+      padding-bottom: 0.75rem;
+      color: var(--muted);
+      font-size: var(--step--1);
+    }
+    .summary.error { color: var(--arxiv); }
+    .breakdown { display: flex; gap: 0.9rem; margin: 0; padding: 0; list-style: none; }
+    .breakdown li { display: flex; align-items: center; gap: 0.35rem; }
+    .swatch { width: 0.6rem; height: 0.6rem; border-radius: 50%; background: var(--src); }
+
     #answer {
-      width: 100%;
-      max-width: 640px;
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 16px;
-      margin-bottom: 16px;
+      display: none;
+      margin: 0 0 1.5rem;
+      font: 400 var(--step-1)/1.6 var(--serif);
       white-space: pre-wrap;
       overflow-wrap: anywhere;
-      word-break: break-word;
-      display: none;
     }
-    ul#sources { width: 100%; max-width: 640px; padding: 0; list-style: none; }
-    ul#sources li {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 12px 16px;
-      margin-bottom: 8px;
+
+    /* Results */
+    #sources { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
+    .result {
+      position: relative;
+      padding: 1.1rem 0 1.2rem 1rem;
+      border-bottom: 1px solid var(--rule);
       overflow-wrap: anywhere;
-      word-break: break-word;
     }
-    ul#sources a { color: var(--accent); text-decoration: none; font-weight: 600; }
-    ul#sources a:hover { text-decoration: underline; }
-    .meta { color: var(--muted); font-size: 0.8rem; margin-top: 4px; overflow-wrap: anywhere; }
-    footer { margin-top: 48px; color: var(--muted); font-size: 0.8rem; text-align: center; }
-    footer a { color: var(--accent); }
+    .result::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 1.2rem;
+      bottom: 1.3rem;
+      width: 3px;
+      border-radius: 2px;
+      background: var(--src);
+    }
+    .src-hackernews { --src: var(--hn); }
+    .src-arxiv { --src: var(--arxiv); }
+    .src-github { --src: var(--github); }
+
+    .result-source {
+      margin: 0 0 0.15rem;
+      color: var(--src);
+      font-size: var(--step--1);
+      font-weight: 700;
+    }
+    .result h2 {
+      margin: 0;
+      font-size: var(--step-1);
+      font-weight: 700;
+      line-height: 1.3;
+      letter-spacing: -0.01em;
+    }
+    .result h2 a { text-decoration: none; }
+    .result h2 a:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+    .abstract {
+      margin: 0.4rem 0 0;
+      max-width: 38rem;
+      font: 400 var(--step-0)/1.6 var(--serif);
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.15rem 1rem;
+      margin: 0.5rem 0 0;
+      padding: 0;
+      list-style: none;
+      color: var(--muted);
+      font-size: var(--step--1);
+    }
+    .meta a { color: var(--muted); text-underline-offset: 3px; }
+    .meta a:hover { color: var(--ink); }
+    .tags { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.55rem 0 0; padding: 0; list-style: none; }
+    .tags li {
+      padding: 0.05rem 0.5rem;
+      border: 1px solid var(--rule);
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: var(--step--1);
+    }
+
+    .empty { padding: 1.5rem 0; color: var(--muted); }
+
+    footer {
+      margin-top: 3rem;
+      color: var(--muted);
+      font-size: var(--step--1);
+    }
+
+    @media (max-width: 34rem) {
+      .wrap { padding-top: 1.75rem; }
+      #query { font-size: var(--step-2); }
+      .ask-row { flex-wrap: wrap; border-bottom: 0; padding-bottom: 0; }
+      #query { flex-basis: 100%; border-bottom: 3px solid var(--ink); }
+      #query:focus { border-bottom-color: var(--accent); }
+      #submit-btn { width: 100%; margin-top: 0.75rem; }
+      .summary { flex-direction: column; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      * { scroll-behavior: auto !important; transition: none !important; }
+    }
   </style>
 </head>
 <body>
-  <header>
-    <h1>AIDataBoon</h1>
-    <p class="subtitle">
-      Ask a question in plain English — search is powered by a RAG pipeline
-      over Hacker News, arXiv, and GitHub trending repos, ingested through a
-      medallion lakehouse and served from pgvector.
-    </p>
-  </header>
+  <div class="wrap">
+    <header class="masthead">
+      <p class="wordmark">AIDataBoon</p>
+      <p class="lede">
+        Search recent Hacker News threads, arXiv papers and trending GitHub
+        repositories in plain English.
+      </p>
+    </header>
 
-  <form id="search-form">
-    <input
-      id="query"
-      type="text"
-      placeholder="e.g. show me papers about LLM fine-tuning from this week"
-      autocomplete="off"
-      required
-    />
-    <button type="submit" id="submit-btn">Search</button>
-  </form>
+    <main>
+      <form id="search-form" class="ask" role="search">
+        <label for="query">What do you want to find?</label>
+        <div class="ask-row">
+          <input
+            id="query"
+            type="search"
+            placeholder="Papers about LLM fine-tuning"
+            autocomplete="off"
+            enterkeyhint="search"
+            required
+          />
+          <button type="submit" id="submit-btn">Search</button>
+        </div>
+      </form>
 
-  <div id="status"></div>
-  <div id="answer"></div>
-  <ul id="sources"></ul>
+      <div class="examples">
+        <span>Try</span>
+        <button type="button" data-q="Papers about LLM fine-tuning from this week">Papers about LLM fine-tuning from this week</button>
+        <button type="button" data-q="What is Hacker News saying about Rust?">What is Hacker News saying about Rust?</button>
+        <button type="button" data-q="Top 5 trending repos for AI agents">Top 5 trending repos for AI agents</button>
+      </div>
 
-  <footer>
-    &copy; 2026 BoonCore
-  </footer>
+      <div id="status" class="summary" role="status" aria-live="polite"></div>
+      <div id="answer"></div>
+      <ol id="sources" hidden></ol>
+    </main>
+
+    <footer>&copy; 2026 BoonCore</footer>
+  </div>
 
   <script>
     const API_BASE = "https://api.aidataboon.com/v1";
+
+    const SOURCES = {
+      hackernews: "Hacker News",
+      arxiv: "arXiv",
+      github: "GitHub",
+    };
 
     const form = document.getElementById("search-form");
     const input = document.getElementById("query");
@@ -125,6 +310,9 @@
     const answerEl = document.getElementById("answer");
     const sourcesEl = document.getElementById("sources");
     const submitBtn = document.getElementById("submit-btn");
+
+    const numberFmt = new Intl.NumberFormat("en");
+    const dateFmt = new Intl.DateTimeFormat("en", { year: "numeric", month: "short", day: "numeric" });
 
     // Lets phrases like "top 3", "first 10", or "5 papers" control how
     // many results come back, instead of always requesting 5.
@@ -144,16 +332,149 @@
       return 5;
     }
 
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const query = input.value.trim();
-      if (!query) return;
+    // Abstracts arrive HTML-escaped and, for HN, with inline markup.
+    // DOMParser never runs scripts, so this only extracts the text.
+    function plainText(html) {
+      if (!html) return "";
+      // Block-level tags become spaces so paragraphs don't run together.
+      const spaced = String(html).replace(/<\/?(?:p|br|div|li|pre)\b[^>]*>/gi, " ");
+      const doc = new DOMParser().parseFromString(spaced, "text/html");
+      return (doc.body.textContent || "").replace(/\s+/g, " ").trim();
+    }
 
+    // Tags come back as a Python list repr: "['a2a', 'agents']".
+    function parseTags(raw) {
+      if (Array.isArray(raw)) return raw;
+      return [...String(raw || "").matchAll(/'([^']+)'/g)].map((m) => m[1]);
+    }
+
+    function toInt(v) {
+      const n = parseInt(v, 10);
+      return Number.isFinite(n) ? n : 0;
+    }
+
+    function plural(n, one, many) {
+      return `${numberFmt.format(n)} ${n === 1 ? one : many}`;
+    }
+
+    function formatAuthors(raw) {
+      const names = String(raw || "").split(",").map((s) => s.trim()).filter(Boolean);
+      if (names.length <= 3) return names.join(", ");
+      return `${names.slice(0, 3).join(", ")} et al.`;
+    }
+
+    function formatDate(iso) {
+      const d = new Date(iso);
+      return Number.isNaN(d.getTime()) ? "" : dateFmt.format(d);
+    }
+
+    function el(tag, props = {}, children = []) {
+      const node = document.createElement(tag);
+      Object.assign(node, props);
+      for (const child of [].concat(children)) {
+        if (child) node.append(child);
+      }
+      return node;
+    }
+
+    // What matters differs per source: points and discussion for HN,
+    // stars and forks for GitHub, authors and date for arXiv.
+    function metaItems(src) {
+      const items = [];
+      const score = toInt(src.score);
+      const comments = toInt(src.num_comments);
+      if (src.source === "hackernews") {
+        if (score) items.push(plural(score, "point", "points"));
+        const hnId = String(src.id || "").replace(/^hn_/, "");
+        const discussion = el("a", {
+          href: `https://news.ycombinator.com/item?id=${encodeURIComponent(hnId)}`,
+          target: "_blank",
+          rel: "noopener",
+          textContent: plural(comments, "comment", "comments"),
+        });
+        if (hnId) items.push(discussion);
+        if (src.author) items.push(`by ${src.author}`);
+        if (src.published_at) items.push(formatDate(src.published_at));
+      } else if (src.source === "github") {
+        if (score) items.push(plural(score, "star", "stars"));
+        if (comments) items.push(plural(comments, "fork", "forks"));
+      } else {
+        if (src.author) items.push(formatAuthors(src.author));
+        if (src.published_at) items.push(formatDate(src.published_at));
+      }
+      return items.filter(Boolean);
+    }
+
+    function renderResult(src) {
+      const key = SOURCES[src.source] ? src.source : "other";
+      const li = el("li", { className: `result src-${key}` });
+
+      li.append(el("p", { className: "result-source", textContent: SOURCES[src.source] || src.source || "Source" }));
+
+      const title = el("a", {
+        href: src.url || "#",
+        target: "_blank",
+        rel: "noopener",
+        textContent: src.title || src.id || "Untitled",
+      });
+      li.append(el("h2", {}, title));
+
+      const abstract = plainText(src.abstract || src.content);
+      if (abstract && abstract !== src.title) {
+        li.append(el("p", { className: "abstract", textContent: abstract }));
+      }
+
+      const meta = metaItems(src);
+      if (meta.length) {
+        li.append(el("ul", { className: "meta" }, meta.map((m) => el("li", {}, m))));
+      }
+
+      const tags = src.source === "github" ? parseTags(src.tags).slice(0, 5) : [];
+      if (tags.length) {
+        li.append(el("ul", { className: "tags", ariaLabel: "Topics" }, tags.map((t) => el("li", { textContent: t }))));
+      }
+      return li;
+    }
+
+    function renderSummary(sources, tookMs) {
+      statusEl.className = "summary";
+      statusEl.replaceChildren();
+      const count = `${plural(sources.length, "result", "results")} in ${numberFmt.format(Math.round(tookMs || 0))} ms`;
+      statusEl.append(el("span", { textContent: count }));
+
+      const bySource = {};
+      for (const s of sources) bySource[s.source] = (bySource[s.source] || 0) + 1;
+      const breakdown = el("ul", { className: "breakdown", ariaLabel: "Results by source" });
+      for (const [key, label] of Object.entries(SOURCES)) {
+        if (!bySource[key]) continue;
+        const swatch = el("span", { className: "swatch" });
+        breakdown.append(el("li", { className: `src-${key}` }, [swatch, `${label} ${bySource[key]}`]));
+      }
+      statusEl.append(breakdown);
+    }
+
+    function setStatus(text, isError = false) {
+      statusEl.className = isError ? "summary error" : "summary";
+      statusEl.textContent = text;
+    }
+
+    // Without an LLM configured, the API returns an extractive placeholder
+    // that only repeats the abstracts shown below, so it is not displayed.
+    function isPlaceholderAnswer(answer) {
+      return /^Based on \d+ matching document/.test(answer || "");
+    }
+
+    async function search(query) {
       submitBtn.disabled = true;
-      statusEl.textContent = "Searching…";
+      setStatus("Searching…");
       answerEl.style.display = "none";
       answerEl.textContent = "";
-      sourcesEl.innerHTML = "";
+      sourcesEl.replaceChildren();
+      sourcesEl.hidden = true;
+
+      const url = new URL(window.location.href);
+      url.searchParams.set("q", query);
+      history.replaceState(null, "", url);
 
       try {
         const limit = extractLimit(query);
@@ -170,7 +491,7 @@
           // idle scale-to-zero state. Retry after a short wait instead
           // of surfacing a raw error on the first try.
           if (res.status === 524 && attempt < maxAttempts) {
-            statusEl.textContent = "Waking up the search service (cold start)… retrying";
+            setStatus(`The search service is starting up. Trying again in ${5 * attempt} seconds…`);
             await new Promise((r) => setTimeout(r, 5000 * attempt));
             continue;
           }
@@ -178,40 +499,60 @@
         }
 
         if (!res.ok) {
-          throw new Error(`API returned ${res.status}`);
+          throw new Error(`the API returned ${res.status}`);
         }
 
         const data = await res.json();
+        const sources = data.sources || [];
 
-        if (data.answer) {
+        if (data.answer && !isPlaceholderAnswer(data.answer)) {
           answerEl.textContent = data.answer;
           answerEl.style.display = "block";
         }
 
-        for (const src of data.sources || []) {
-          const li = document.createElement("li");
-          const a = document.createElement("a");
-          a.href = src.url || "#";
-          a.target = "_blank";
-          a.rel = "noopener";
-          a.textContent = src.title || src.id || "Untitled";
-
-          const meta = document.createElement("div");
-          meta.className = "meta";
-          meta.textContent = [src.source, src.author].filter(Boolean).join(" · ");
-
-          li.appendChild(a);
-          li.appendChild(meta);
-          sourcesEl.appendChild(li);
+        if (!sources.length) {
+          setStatus("");
+          sourcesEl.append(el("li", { className: "empty", textContent: "No matches. Try fewer or broader words." }));
+        } else {
+          for (const src of sources) sourcesEl.append(renderResult(src));
+          renderSummary(sources, data.took_ms);
         }
-
-        statusEl.textContent = `${(data.sources || []).length} result(s) in ${Math.round(data.took_ms || 0)} ms`;
+        sourcesEl.hidden = false;
       } catch (err) {
-        statusEl.textContent = `Error: ${err.message}`;
+        setStatus(`Search failed: ${err.message}. Try again in a minute.`, true);
       } finally {
         submitBtn.disabled = false;
       }
+    }
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const query = input.value.trim();
+      if (query) search(query);
     });
+
+    for (const btn of document.querySelectorAll(".examples button")) {
+      btn.addEventListener("click", () => {
+        input.value = btn.dataset.q;
+        search(btn.dataset.q);
+      });
+    }
+
+    // "/" jumps to the search box from anywhere on the page.
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "/" && document.activeElement !== input) {
+        e.preventDefault();
+        input.focus();
+        input.select();
+      }
+    });
+
+    // Shared links (?q=...) run their search on load.
+    const initial = new URLSearchParams(window.location.search).get("q");
+    if (initial) {
+      input.value = initial;
+      search(initial);
+    }
   </script>
 </body>
 </html>
