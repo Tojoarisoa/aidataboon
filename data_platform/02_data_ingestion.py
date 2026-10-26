@@ -16,6 +16,7 @@ import hashlib
 import json
 import logging
 import os
+import sys
 import time
 import uuid
 import xml.etree.ElementTree as ET
@@ -1246,4 +1247,9 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    # Running this file has already ingested HN, arXiv and GitHub into Bronze:
+    # without Airflow, the DAG functions above run when the module loads. The
+    # standalone demo only re-fetches a few items and prints them, so it runs
+    # only on request (python 02_data_ingestion.py --demo).
+    if "--demo" in sys.argv[1:]:
+        main()
