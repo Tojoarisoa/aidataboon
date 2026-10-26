@@ -514,7 +514,7 @@
         const data = await res.json();
         const sources = data.sources || [];
 
-        if (data.answer && !isPlaceholderAnswer(data.answer)) {
+        if (sources.length && data.answer && !isPlaceholderAnswer(data.answer)) {
           answerEl.textContent = data.answer;
           answerEl.style.display = "block";
         }
