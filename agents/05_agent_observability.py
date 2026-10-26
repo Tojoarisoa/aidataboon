@@ -105,7 +105,7 @@ GEN_AI_OPERATION_NAME = "gen_ai.operation.name"
 # ---------------------------------------------------------------------------
 
 
-def setup_tracing(config: ObservabilityConfig | None = None) -> "trace.Tracer | None":
+def setup_tracing(config: ObservabilityConfig | None = None) -> trace.Tracer | None:
     """Configure a global TracerProvider for agent spans. Returns None (no-op)
     if opentelemetry-sdk is not installed."""
     if not _OTEL_AVAILABLE:
@@ -139,7 +139,7 @@ class AgentTracer:
     never need `if tracer is not None` branches.
     """
 
-    def __init__(self, tracer: "trace.Tracer | None") -> None:
+    def __init__(self, tracer: trace.Tracer | None) -> None:
         self.tracer = tracer
 
     @property

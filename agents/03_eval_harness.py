@@ -6,7 +6,7 @@ golden_qa.jsonl through Agent.chat() (04_agent_orchestration.py), scores
 each run with RAGAS-style metrics (faithfulness, answer relevancy, context
 precision/recall), and writes eval_report.json. Exits non-zero if the mean
 composite score drops below EVAL_MIN_SCORE — wired into
-08_cicd_eval_pipeline.yml as a CI regression gate.
+.github/workflows/agents-cicd.yml as a CI regression gate.
 
 Uses `ragas` if installed; otherwise a dependency-free heuristic based on
 keyword overlap and the same hash-fallback embeddings as

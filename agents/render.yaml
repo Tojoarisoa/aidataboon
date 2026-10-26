@@ -7,8 +7,9 @@
 #      and creates the service below.
 #   2. Set the DATABASE_URL secret (same Neon project as the RAG API, or a
 #      separate one) in the service's Environment tab.
-#   3. Render builds Dockerfile.agents and deploys automatically on every
-#      push to main. No credit card required for the free plan.
+#   3. Render builds Dockerfile.agents and deploys each push to main once
+#      the agents CI workflow (.github/workflows/agents-cicd.yml) passes.
+#      No credit card required for the free plan.
 #
 # Free plan: 512MB RAM, shared CPU, spins down after 15 min idle (cold
 # start ~30-50s on the next request). Hostname: <service-name>.onrender.com
@@ -25,6 +26,7 @@ services:
     plan: free
     region: oregon
     healthCheckPath: /health
+    autoDeployTrigger: checksPass # deploy only after .github/workflows/agents-cicd.yml passes
     envVars:
       - key: PORT
         value: "8100"

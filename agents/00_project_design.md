@@ -129,8 +129,9 @@ runs each question through `Agent.chat()`, scores
 faithfulness/answer-relevancy/context-precision/context-recall using `ragas`
 if installed, else a keyword/embedding-overlap heuristic, aggregates into
 `eval_report.json`, and exits non-zero if the mean composite score drops
-below `EVAL_MIN_SCORE` (default 0.6) — wired into `08_cicd_eval_pipeline.yml`
-as a regression gate on every PR.
+below `EVAL_MIN_SCORE` (default 0.6; CI uses 0.30, a baseline for the
+heuristic fallbacks) — wired into `.github/workflows/agents-cicd.yml` as a
+regression gate on every PR.
 
 ### ADR-6: user_id threading for per-user A/B without per-request reconnects
 `Agent`/`AgentOrchestrator` are constructed once (singletons in the FastAPI
@@ -175,4 +176,4 @@ container, no managed compute spend).
 | `06_agent_api.py` | FastAPI agent API (integration layer) |
 | `Dockerfile.agents` / `requirements-agents.txt` / `.dockerignore` | Container image for `agent-api` |
 | `07_cloudflare_agents.tf` | DNS/Tunnel for `agents.aidataboon.com` |
-| `08_cicd_eval_pipeline.yml` | GitHub Actions: lint, typecheck, eval gate, build, deploy |
+| `../.github/workflows/agents-cicd.yml` | GitHub Actions: lint, typecheck, eval gate, image build (Render deploys after checks pass) |

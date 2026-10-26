@@ -18,3 +18,25 @@ dependencies = [
     "python-dotenv>=1.2.2",
     "scikit-learn>=1.9.0",
 ]
+
+[tool.ruff.lint]
+ignore = [
+    "BLE001", # broad `except Exception` is how optional backends fall back gracefully
+    "SIM905", # stopword lists read better as one whitespace-separated string
+]
+
+[tool.mypy]
+# Optional backends are imported inside try/except ImportError and are not
+# all installed in CI; the fallbacks are what gets type-checked there.
+[[tool.mypy.overrides]]
+module = [
+    "langgraph.*",
+    "opentelemetry.*",
+    "prometheus_client",
+    "psycopg",
+    "psycopg.*",
+    "ragas",
+    "ragas.*",
+    "sentence_transformers",
+]
+ignore_missing_imports = true

@@ -22,11 +22,11 @@ docker compose -f data_platform/01_local_stack.yml up -d
 # Agents: includes the platform stack and adds the agent API on :8100
 docker compose -f agents/01_agents_stack.yml up -d
 
-# Eval gate (no services needed; uses the heuristic fallbacks)
+# Eval gate (needs the RAG API on :8000, e.g. from the platform stack above)
 uv run python agents/03_eval_harness.py
 ```
 
-Pipelines can also run in CI: the `Data ingestion (R2)` workflow (`.github/workflows/ingest.yml`) needs the `S3_ENDPOINT_URL`, `S3_ACCESS_KEY` and `S3_SECRET_KEY` repository secrets. The agents CI/CD file lives in `agents/08_cicd_eval_pipeline.yml`; copy it to `.github/workflows/` to activate it.
+Pipelines can also run in CI: the `Data ingestion (R2)` workflow (`.github/workflows/ingest.yml`) needs the `S3_ENDPOINT_URL`, `S3_ACCESS_KEY` and `S3_SECRET_KEY` repository secrets. The agents CI/CD workflow (`.github/workflows/agents-cicd.yml`) lints, type-checks and eval-gates every change to `agents/`; Render deploys the agent API only after it passes.
 
 ## Deploy
 

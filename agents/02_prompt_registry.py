@@ -18,7 +18,7 @@ import hashlib
 import logging
 import os
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 logging.basicConfig(
@@ -92,7 +92,7 @@ class PromptVersion:
     template: str
     is_active: bool = False
     traffic_pct: int = 100
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def render(self, **kwargs: Any) -> str:

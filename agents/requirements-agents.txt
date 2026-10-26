@@ -11,7 +11,7 @@
 #     a large dependency tree for no behavioral difference in production.
 #   - ragas: 03_eval_harness.py's heuristic fallback covers the CI eval gate;
 #     ragas + its langchain dependency tree is only needed for the optional
-#     real-RAGAS scoring path, run in CI (08_cicd_eval_pipeline.yml), not the
+#     real-RAGAS scoring path, run in CI (.github/workflows/agents-cicd.yml), not the
 #     served API.
 
 # Core (always imported, no fallback)
