@@ -218,7 +218,10 @@ class RAGConfig:
 
     # LLM answer composition: "none" | "anthropic" | "ollama" | "openai"
     llm_provider: str = field(default_factory=lambda: os.environ.get("LLM_PROVIDER", "none"))
-    anthropic_api_key: str = field(default_factory=lambda: os.environ.get("ANTHROPIC_API_KEY", ""))
+    # Claude credentials are resolved by the anthropic SDK itself: workload
+    # identity federation on Render (ANTHROPIC_FEDERATION_RULE_ID etc.), or
+    # ANTHROPIC_API_KEY. An API key, even an empty one, takes priority over
+    # federation, so leave it unset when using federation.
     anthropic_model: str = field(default_factory=lambda: os.environ.get("ANTHROPIC_MODEL", "claude-opus-5-5"))
     # Short cited answers need little reasoning; low effort keeps them fast.
     anthropic_effort: str = field(default_factory=lambda: os.environ.get("ANTHROPIC_EFFORT", "low"))
@@ -930,9 +933,7 @@ class AnswerComposer:
         if self._anthropic is None:
             # A search should never wait on the LLM for long: one retry, then
             # compose() falls back to the extractive answer.
-            self._anthropic = anthropic.Anthropic(
-                api_key=self.config.anthropic_api_key or None, timeout=25.0, max_retries=1
-            )
+            self._anthropic = anthropic.Anthropic(timeout=25.0, max_retries=1)
         context = "\n\n".join(
             f"[{i + 1}] {s.get('title', '')} ({s.get('source', '')}, "
             f"{_coerce_datetime(s.get('published_at')) or 'undated'})\n"
