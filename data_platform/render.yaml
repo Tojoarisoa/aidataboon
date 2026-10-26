@@ -38,23 +38,16 @@ services:
         value: "8000"
       - key: WORKERS
         value: "1"
-      # Claude writes the cited search answers, authenticated with workload
-      # identity federation (Render managed OIDC, Pro workspace or higher):
-      # Render sees ANTHROPIC_FEDERATION_RULE_ID and sets
-      # ANTHROPIC_IDENTITY_TOKEN_FILE itself; never set that one, and don't
-      # set ANTHROPIC_API_KEY (it would take priority). If a call fails, the
+      # Claude writes the cited search answers. ANTHROPIC_API_KEY comes from
+      # a dedicated Claude Console workspace with a monthly spend limit.
+      # (Workload identity federation would avoid the key but needs Render's
+      # managed OIDC, which requires a Pro workspace.) If a call fails, the
       # API falls back to an extractive answer.
       - key: LLM_PROVIDER
         value: anthropic
       - key: ANTHROPIC_MODEL
         value: claude-opus-5-5
-      - key: ANTHROPIC_FEDERATION_RULE_ID
-        sync: false
-      - key: ANTHROPIC_ORGANIZATION_ID
-        sync: false
-      - key: ANTHROPIC_SERVICE_ACCOUNT_ID
-        sync: false
-      - key: ANTHROPIC_WORKSPACE_ID
+      - key: ANTHROPIC_API_KEY
         sync: false
       - key: S3_GOLD_BUCKET
         value: aidataboon-gold

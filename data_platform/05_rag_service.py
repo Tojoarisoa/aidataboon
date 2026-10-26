@@ -218,10 +218,9 @@ class RAGConfig:
 
     # LLM answer composition: "none" | "anthropic" | "ollama" | "openai"
     llm_provider: str = field(default_factory=lambda: os.environ.get("LLM_PROVIDER", "none"))
-    # Claude credentials are resolved by the anthropic SDK itself: workload
-    # identity federation on Render (ANTHROPIC_FEDERATION_RULE_ID etc.), or
-    # ANTHROPIC_API_KEY. An API key, even an empty one, takes priority over
-    # federation, so leave it unset when using federation.
+    # Claude credentials are resolved by the anthropic SDK itself: on Render,
+    # ANTHROPIC_API_KEY (workload identity federation also works where the
+    # platform issues identity tokens).
     anthropic_model: str = field(default_factory=lambda: os.environ.get("ANTHROPIC_MODEL", "claude-opus-5-5"))
     # Short cited answers need little reasoning; low effort keeps them fast.
     anthropic_effort: str = field(default_factory=lambda: os.environ.get("ANTHROPIC_EFFORT", "low"))
