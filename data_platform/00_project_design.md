@@ -1,4 +1,4 @@
-# AIDataBoon — AI-Powered Data Infrastructure Platform
+# AIDataBoon: AI-Powered Data Infrastructure Platform
 ## Architecture & Design Document
 
 **Domain:** aidataboon.com  
@@ -9,11 +9,11 @@
 
 ## 1. Project Overview
 
-AIDataBoon is a production-grade AI data infrastructure platform that demonstrates the full data engineering lifecycle: from raw API ingestion through a medallion lakehouse architecture to natural language search powered by retrieval-augmented generation (RAG). It continuously harvests signal from three high-value technical communities — Hacker News, arXiv research papers, and GitHub trending repositories — and makes that knowledge instantly searchable via plain English queries like "show me papers about LLM fine-tuning from this week" or "find trending Rust projects for systems programming."
+AIDataBoon is a production-grade AI data infrastructure platform that demonstrates the full data engineering lifecycle: from raw API ingestion through a medallion lakehouse architecture to natural language search powered by retrieval-augmented generation (RAG). It continuously harvests signal from three high-value technical communities, Hacker News, arXiv research papers, and GitHub trending repositories, and makes that knowledge instantly searchable via plain English queries like "show me papers about LLM fine-tuning from this week" or "find trending Rust projects for systems programming."
 
 The platform solves a real problem faced by engineers and researchers: the fragmentation of technical knowledge across multiple sources with no unified discovery layer. A data engineer monitoring the ML/AI space today must manually check HN, browse arXiv, scan GitHub trending, and reconcile duplicates across sources. AIDataBoon eliminates that friction by ingesting all three sources on a defined schedule, deduplicating and enriching the data through a medallion lakehouse (Bronze → Silver → Gold), extracting semantic embeddings, and serving them through a RAG API that lets users ask natural language questions with cited, ranked results.
 
-As a portfolio project, AIDataBoon demonstrates mastery of the full modern data stack: Apache Airflow for orchestration, DuckDB + Delta Lake for lakehouse transforms, Apache Kafka + Flink for real-time streaming, pgvector for vector similarity search, sentence-transformers for local embedding generation, MLflow for experiment tracking, Feast for feature serving, FastAPI for the RAG API layer, and Prometheus/Grafana for observability — all deployable locally via Docker Compose and to production for under $15/month. The live demo runs at [aidataboon.com](https://aidataboon.com).
+As a portfolio project, AIDataBoon demonstrates mastery of the full modern data stack: Apache Airflow for orchestration, DuckDB + Delta Lake for lakehouse transforms, Apache Kafka + Flink for real-time streaming, pgvector for vector similarity search, sentence-transformers for local embedding generation, MLflow for experiment tracking, Feast for feature serving, FastAPI for the RAG API layer, and Prometheus/Grafana for observability; all deployable locally via Docker Compose and to production for under $15/month. The live demo runs at [aidataboon.com](https://aidataboon.com).
 
 ---
 
@@ -37,7 +37,7 @@ As a portfolio project, AIDataBoon demonstrates mastery of the full modern data 
             │                      │                           │
             ▼                      ▼                           ▼
 ┌─────────────────────────────────────────────────────────────────────────────────────┐
-│  INGESTION LAYER (Apache Airflow 2.9 — CeleryExecutor)                               │
+│  INGESTION LAYER (Apache Airflow 2.9 : CeleryExecutor)                               │
 │                                                                                      │
 │  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐                         │
 │  │  hn_ingest DAG │  │ arxiv_ingest   │  │ github_ingest  │                         │
@@ -132,10 +132,10 @@ As a portfolio project, AIDataBoon demonstrates mastery of the full modern data 
 │  │    5. Compose context + generate answer (Ollama/local or OpenAI fallback)   │   │
 │  │    6. Return: answer + cited sources + relevance scores                      │   │
 │  │                                                                              │   │
-│  │  GET  /trending          — top items by source, last 24h                    │   │
-│  │  GET  /topics            — clustered topic summary                           │   │
-│  │  GET  /health            — readiness + liveness                              │   │
-│  │  GET  /metrics           — Prometheus exposition format                      │   │
+│  │  GET  /trending          : top items by source, last 24h                    │   │
+│  │  GET  /topics            : clustered topic summary                           │   │
+│  │  GET  /health            : readiness + liveness                              │   │
+│  │  GET  /metrics           : Prometheus exposition format                      │   │
 │  └──────────────────────────────────────────────────────────────────────────────┘   │
 └──────────────────────────────────────────┬───────────────────────────────────────────┘
                                            │
@@ -199,7 +199,7 @@ The RAG API requires ANN (approximate nearest neighbor) search over ~100K–500K
 Use pgvector with HNSW indexing on PostgreSQL 16, hosted on Neon.tech free tier in production.
 
 **Rationale:**
-- **Cost:** Pinecone starter plan is $70/month for 1M vectors. Qdrant Cloud free tier limits to 1GB RAM. Neon.tech free tier is genuinely free with 0.5 GB storage (sufficient for 500K × 384-dim float32 vectors ≈ 768 MB — marginal, use float16 or PQ compression for free tier). Self-hosted pgvector on Render costs $0/month on the free instance class (512MB RAM, sleeps when idle).
+- **Cost:** Pinecone starter plan is $70/month for 1M vectors. Qdrant Cloud free tier limits to 1GB RAM. Neon.tech free tier is genuinely free with 0.5 GB storage (sufficient for 500K × 384-dim float32 vectors ≈ 768 MB; marginal, use float16 or PQ compression for free tier). Self-hosted pgvector on Render costs $0/month on the free instance class (512MB RAM, sleeps when idle).
 - **Operational simplicity:** PostgreSQL is already in the stack for Airflow metadata, MLflow backend, and application data. pgvector reuses the same connection pool, same backup strategy, same operational knowledge. Adding Pinecone adds a new vendor, a new API key, a new failure domain.
 - **HNSW quality:** pgvector 0.7+ ships HNSW indexing with `m=16, ef_construction=64` defaults. For 384-dim vectors, recall@10 exceeds 0.97 at <10ms latency on modest hardware.
 - **No vendor lock-in:** The embedding table is plain PostgreSQL. Migration to another vector DB is a simple `pg_dump` + reimport.
@@ -224,7 +224,7 @@ Use Cloudflare R2 in production (with MinIO locally for development parity).
 
 **Rationale:**
 - **Egress cost:** AWS S3 charges $0.09/GB for data egress. Cloudflare R2 charges $0.00/GB for egress. For a data platform that reads Delta Lake files for every transform run, egress costs on S3 accumulate rapidly. R2 eliminates this entirely.
-- **Domain integration:** aidataboon.com is already registered and managed in Cloudflare. R2 buckets can be exposed via custom domains (e.g., `data.aidataboon.com`) using Cloudflare's native routing — no CORS headaches, no IAM configuration for CDN.
+- **Domain integration:** aidataboon.com is already registered and managed in Cloudflare. R2 buckets can be exposed via custom domains (e.g., `data.aidataboon.com`) using Cloudflare's native routing: no CORS headaches, no IAM configuration for CDN.
 - **S3 compatibility:** R2 is fully S3-compatible. DuckDB's `httpfs` extension, the `deltalake` Python library (delta-rs), and MLflow all support S3-compatible endpoints via `endpoint_url`. Switching from MinIO (local) to R2 (prod) requires only changing three environment variables.
 - **Cost:** R2 free tier includes 10 GB storage, 1M Class A operations/month, 10M Class B operations/month. AIDataBoon's production usage fits within free tier for the first 6–12 months.
 
@@ -272,7 +272,7 @@ Use `sentence-transformers` library with the `all-MiniLM-L6-v2` model for all em
 - **Cost:** OpenAI embeddings at $0.02/1M tokens sounds cheap, but at 100K documents × 512 tokens average = 51.2M tokens = ~$1.02 per full re-embed. Re-embedding on model upgrades or schema changes adds up. Local inference is $0.00.
 - **Latency:** `all-MiniLM-L6-v2` runs inference in ~2ms/document on CPU (batch size 32), ~0.3ms/document on GPU. OpenAI API adds 50–200ms network round-trip per batch request.
 - **Privacy:** Documents ingested from HN/arXiv/GitHub may contain sensitive commentary. Keeping embeddings local avoids sending data to third-party APIs.
-- **Quality:** `all-MiniLM-L6-v2` (384-dim) achieves 0.7897 on MTEB STS Benchmark — sufficient for technical document search. The model size is 22MB and fits in RAM.
+- **Quality:** `all-MiniLM-L6-v2` (384-dim) achieves 0.7897 on MTEB STS Benchmark; sufficient for technical document search. The model size is 22MB and fits in RAM.
 - **Portability:** No API key required. The Docker image bundles the model weights. The system works offline.
 
 **Consequences:**
@@ -294,7 +294,7 @@ Writing ACID-compliant Delta Lake tables from Python without Apache Spark. Candi
 Use the `deltalake` Python package (backed by delta-rs, written in Rust) for all Delta Lake read/write operations.
 
 **Rationale:**
-- **No JVM overhead:** PySpark requires a JVM, which adds 1–2 GB RAM overhead and 10–30 second startup time for each transform task. delta-rs is a native Rust library with Python bindings — startup is instantaneous, memory overhead is minimal.
+- **No JVM overhead:** PySpark requires a JVM, which adds 1–2 GB RAM overhead and 10–30 second startup time for each transform task. delta-rs is a native Rust library with Python bindings; startup is instantaneous, memory overhead is minimal.
 - **Feature completeness:** delta-rs 0.17+ supports ACID writes, schema evolution, time travel (version queries), Z-ordering, and OPTIMIZE compaction. All features needed for Bronze/Silver/Gold transforms are available.
 - **DuckDB integration:** DuckDB 0.10+ includes a `delta` extension that reads Delta tables via delta-rs internals. DuckDB + delta-rs share the same underlying Rust library, ensuring compatibility.
 - **Cost:** delta-rs is Apache 2.0 licensed, open source, no licensing fees.
@@ -318,7 +318,7 @@ Use the `deltalake` Python package (backed by delta-rs, written in Rust) for all
 | Embeddings | sentence-transformers CPU | $0.00 |
 | **Total** | | **$0.00** |
 
-### Production — Minimal (~$0/month, no credit card required)
+### Production: Minimal (~$0/month, no credit card required)
 
 | Component | Tool | Cost/Month |
 |-----------|------|-----------|
@@ -333,7 +333,7 @@ Use the `deltalake` Python package (backed by delta-rs, written in Rust) for all
 | Airflow | Render free web service (sleeps on idle) | $0.00 |
 | **Total** | | **~$0.00** |
 
-### Production — Full AWS Alternative
+### Production: Full AWS Alternative
 
 | Component | Tool | Cost/Month |
 |-----------|------|-----------|
@@ -343,7 +343,7 @@ Use the `deltalake` Python package (backed by delta-rs, written in Rust) for all
 | Kafka (managed) | AWS MSK smallest broker | $45.00 |
 | Frontend | AWS CloudFront + S3 | $3.00 |
 | Monitoring | AWS CloudWatch | $10.00 |
-| Airflow | MWAA (managed) — minimum | $45.00 |
+| Airflow | MWAA (managed): minimum | $45.00 |
 | **Total** | | **~$161.00** |
 
 **Cost savings by choosing the minimal stack: ~$149/month (~92% reduction)**
@@ -356,7 +356,7 @@ Use the `deltalake` Python package (backed by delta-rs, written in Rust) for all
 |-----------|-----------|---------|-----------|-------------|
 | **Orchestration** | Apache Airflow | 2.9 | Industry standard, CeleryExecutor, rich providers | $0 (self-hosted) |
 | **Object Storage (local)** | MinIO | RELEASE.2024-01-01 | S3-compatible, zero config, Docker-native | $0 |
-| **Object Storage (prod)** | Cloudflare R2 | — | Zero egress fees, CF domain integration | $0 free tier |
+| **Object Storage (prod)** | Cloudflare R2 | n/a | Zero egress fees, CF domain integration | $0 free tier |
 | **Table Format** | Delta Lake (delta-rs) | 0.17+ | ACID, time travel, DuckDB-compatible, no JVM | $0 (OSS) |
 | **Query Engine** | DuckDB | 0.10+ | In-process, vectorized, reads Delta/Parquet/S3 | $0 (OSS) |
 | **Relational DB** | PostgreSQL 16 | 16.x | Airflow meta, MLflow backend, pgvector host | $0 free tier |
@@ -366,7 +366,7 @@ Use the `deltalake` Python package (backed by delta-rs, written in Rust) for all
 | **Schema Registry** | Confluent Schema Registry | 7.6 | Avro/JSON Schema enforcement on Kafka topics | $0 (OSS) |
 | **Embedding Model** | sentence-transformers | 2.x | all-MiniLM-L6-v2, 384-dim, 22MB, CPU-capable | $0 (local) |
 | **Cross-Encoder** | sentence-transformers | 2.x | ms-marco-MiniLM-L-6-v2, re-ranking | $0 (local) |
-| **LLM (answer gen)** | Ollama (local) / OpenAI | — | Local-first, OpenAI fallback configurable | $0 / pay-per-use |
+| **LLM (answer gen)** | Ollama (local) / OpenAI | n/a | Local-first, OpenAI fallback configurable | $0 / pay-per-use |
 | **ML Tracking** | MLflow | 2.x | Experiment tracking, model registry, artifact store | $0 (OSS) |
 | **Feature Store** | Feast | 0.36+ | Online + offline feature serving, DuckDB offline store | $0 (OSS) |
 | **API Framework** | FastAPI | 0.110+ | Async, OpenAPI docs, Pydantic validation, fast | $0 (OSS) |
@@ -374,8 +374,8 @@ Use the `deltalake` Python package (backed by delta-rs, written in Rust) for all
 | **Dashboards** | Grafana | 10.x | Prometheus + Loki datasources, alerting | $0 (OSS) |
 | **Tracing** | OpenTelemetry + Jaeger | OTEL 0.96 | Distributed traces, W3C trace context | $0 (OSS) |
 | **IaC** | Terraform | 1.8+ | Cloudflare DNS, Render resources, Neon DB | $0 (OSS) |
-| **CDN / Edge** | Cloudflare Pages + Workers | — | Global CDN, domain management | $0 free plan |
-| **CI/CD** | GitHub Actions | — | Free for public repos, matrix builds, OIDC deploy | $0 public repo |
+| **CDN / Edge** | Cloudflare Pages + Workers | n/a | Global CDN, domain management | $0 free plan |
+| **CI/CD** | GitHub Actions | n/a | Free for public repos, matrix builds, OIDC deploy | $0 public repo |
 | **Container Runtime** | Docker + Docker Compose | 27.x + 2.x | Local dev, reproducible environments | $0 (OSS) |
 | **Language** | Python | 3.11 | Universal data ecosystem compatibility | $0 |
 
@@ -383,7 +383,7 @@ Use the `deltalake` Python package (backed by delta-rs, written in Rust) for all
 
 ## 6. Data Sources
 
-### 6.1 Hacker News — Algolia Search API
+### 6.1 Hacker News: Algolia Search API
 
 **Endpoint:**
 ```
@@ -416,7 +416,7 @@ https://hn.algolia.com/api/v1/search?tags=story&numericFilters=points>50&hitsPer
 
 ---
 
-### 6.2 arXiv — Atom API
+### 6.2 arXiv: Atom API
 
 **Endpoint:**
 ```
@@ -427,11 +427,11 @@ http://export.arxiv.org/api/query?search_query=cat:cs.AI+OR+cat:cs.LG+OR+cat:cs.
 **Volume:** ~100–500 new papers/day in cs.AI + cs.LG + cs.CL
 
 **Categories ingested:**
-- `cs.AI` — Artificial Intelligence
-- `cs.LG` — Machine Learning
-- `cs.CL` — Computation and Language (NLP)
-- `cs.DB` — Databases (for data infrastructure papers)
-- `cs.DC` — Distributed Computing
+- `cs.AI`: Artificial Intelligence
+- `cs.LG`: Machine Learning
+- `cs.CL`: Computation and Language (NLP)
+- `cs.DB`: Databases (for data infrastructure papers)
+- `cs.DC`: Distributed Computing
 
 **Key fields extracted from Atom XML:**
 ```python
@@ -452,7 +452,7 @@ http://export.arxiv.org/api/query?search_query=cat:cs.AI+OR+cat:cs.LG+OR+cat:cs.
 
 ---
 
-### 6.3 GitHub Trending — Daily Scrape
+### 6.3 GitHub Trending: Daily Scrape
 
 **URL pattern:**
 ```
@@ -482,11 +482,11 @@ https://github.com/trending/{language}?since=daily   # per language
 }
 ```
 
-**Rate limits:** GitHub rate-limits unauthenticated requests to 60/hour. The Airflow DAG uses `GITHUB_TOKEN` (optional) for 5000/hour. Scraping runs once daily — well within limits.
+**Rate limits:** GitHub rate-limits unauthenticated requests to 60/hour. The Airflow DAG uses `GITHUB_TOKEN` (optional) for 5000/hour. Scraping runs once daily: well within limits.
 
 ---
 
-## 7. Domain Setup — aidataboon.com
+## 7. Domain Setup: aidataboon.com
 
 ### 7.1 DNS Architecture
 
@@ -592,31 +592,22 @@ cloudflare wrangler >= 3.0
 ### Clone and Configure
 
 ```bash
-git clone https://github.com/yourusername/aidataboon.git
+git clone https://github.com/Tojoarisoa/aidataboon.git
 cd aidataboon/data_platform
 
-# Copy environment template
+# Copy the environment template (every value is optional)
 cp .env.example .env
-
-# Edit secrets (MinIO, Postgres passwords, optional API keys)
-nano .env
 ```
 
 ### Environment Variables
 
-```bash
-# .env — minimum required for local development
-POSTGRES_PASSWORD=aidataboon_secret_2024
-MINIO_ROOT_PASSWORD=minioadmin123_secure
-AIRFLOW_FERNET_KEY=$(python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
-AIRFLOW_SECRET_KEY=$(openssl rand -hex 32)
-
-# Optional: GitHub token for higher trending scrape rate limit
-GITHUB_TOKEN=ghp_your_token_here
-
-# Optional: OpenAI fallback for answer generation
-OPENAI_API_KEY=sk-...
-```
+`data_platform/.env.example` lists what the local stack reads: Airflow's
+Fernet and webserver keys (set your own; the built-in values are local
+development defaults), an optional `GITHUB_TOKEN` for a higher trending
+scrape rate limit, and the answer-generation provider (`LLM_PROVIDER` with
+`ANTHROPIC_API_KEY` or `OPENAI_API_KEY`). The Postgres and MinIO passwords
+in `01_local_stack.yml` are fixed local-only credentials; never reuse them
+for a deployment.
 
 ### Start Local Stack
 
@@ -638,13 +629,13 @@ watch -n 5 'docker compose -f 01_local_stack.yml ps --format "table {{.Name}}\t{
 | Airflow UI | http://localhost:8080 | admin / admin |
 | Grafana | http://localhost:3000 | admin / admin |
 | MinIO Console | http://localhost:9001 | minioadmin / minioadmin123 |
-| MLflow UI | http://localhost:5000 | — |
-| Jaeger UI | http://localhost:16686 | — |
-| Prometheus | http://localhost:9090 | — |
-| RAG API docs | http://localhost:8000/docs | — |
-| Feast server | http://localhost:6566 | — |
-| Kafka UI | — | Use Airflow or kafka-ui |
-| Schema Registry | http://localhost:8081 | — |
+| MLflow UI | http://localhost:5000 | n/a |
+| Jaeger UI | http://localhost:16686 | n/a |
+| Prometheus | http://localhost:9090 | n/a |
+| RAG API docs | http://localhost:8000/docs | n/a |
+| Feast server | http://localhost:6566 | n/a |
+| Kafka UI | n/a | Use Airflow or kafka-ui |
+| Schema Registry | http://localhost:8081 | n/a |
 
 ### First Pipeline Run
 
@@ -769,5 +760,5 @@ data_platform/
 
 ---
 
-*AIDataBoon — AI Data Infrastructure Portfolio Project*  
+*AIDataBoon: AI Data Infrastructure Portfolio Project*  
 *Domain: aidataboon.com | Stack: Airflow + DuckDB + Delta Lake + Kafka + pgvector + FastAPI*

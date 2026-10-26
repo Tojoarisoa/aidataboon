@@ -1,5 +1,5 @@
 # =============================================================================
-# AIDataBoon — AWS Infrastructure (Cost-Optimized)
+# AIDataBoon: AWS Infrastructure (Cost-Optimized)
 # Optional alternative to 09_cloudflare_infra.tf
 #
 # IMPORTANT: This is the OPTIONAL AWS deployment path.
@@ -104,7 +104,7 @@ variable "app_image_tag" {
 # Enable only if ECS tasks need outbound internet and you cannot use
 # VPC endpoints or public subnets with assigned public IPs.
 variable "enable_nat_gateway" {
-  description = "Create NAT Gateway for private subnets — adds ~$32/month"
+  description = "Create NAT Gateway for private subnets; adds ~$32/month"
   type        = bool
   default     = false
 }
@@ -112,7 +112,7 @@ variable "enable_nat_gateway" {
 variable "fargate_cpu" {
   description = "CPU units for RAG API Fargate task (256 = 0.25 vCPU)"
   type        = number
-  default     = 512 # 0.5 vCPU — Cost: ~$0.02/hour at on-demand, ~$0.01 Spot
+  default     = 512 # 0.5 vCPU, cost ~$0.02/hour at on-demand, ~$0.01 Spot
 }
 
 variable "fargate_memory" {
@@ -133,7 +133,7 @@ data "aws_availability_zones" "available" {
 }
 
 # ---------------------------------------------------------------------------
-# Networking — VPC + Public Subnets (no private subnets = no NAT cost)
+# Networking: VPC + Public Subnets (no private subnets = no NAT cost)
 # ---------------------------------------------------------------------------
 # Architecture decision: We use only public subnets and assign public IPs
 # directly to Fargate tasks. Traffic is secured at the security group level.
@@ -148,7 +148,7 @@ resource "aws_vpc" "main" {
   tags = { Name = "${var.project_name}-vpc" }
 }
 
-# Public subnet A — ALB + Fargate tasks
+# Public subnet A: ALB + Fargate tasks
 # Cost: FREE (no charge for subnets or public IPs on EC2/Fargate)
 resource "aws_subnet" "public_a" {
   vpc_id                  = aws_vpc.main.id
@@ -159,7 +159,7 @@ resource "aws_subnet" "public_a" {
   tags = { Name = "${var.project_name}-public-a", Tier = "public" }
 }
 
-# Public subnet B — ALB requires 2 AZs minimum
+# Public subnet B: ALB requires 2 AZs minimum
 resource "aws_subnet" "public_b" {
   vpc_id                  = aws_vpc.main.id
   cidr_block              = "10.0.2.0/24"
@@ -199,7 +199,7 @@ resource "aws_route_table_association" "public_b" {
 # Security Groups
 # ---------------------------------------------------------------------------
 
-# ALB — accepts HTTP (80) and HTTPS (443) from the internet
+# ALB: accepts HTTP (80) and HTTPS (443) from the internet
 resource "aws_security_group" "alb_sg" {
   name        = "${var.project_name}-alb-sg"
   description = "Allow HTTP/HTTPS inbound to ALB"
@@ -231,7 +231,7 @@ resource "aws_security_group" "alb_sg" {
   tags = { Name = "${var.project_name}-alb-sg" }
 }
 
-# ECS tasks — only accepts traffic from the ALB on port 8000
+# ECS tasks: only accepts traffic from the ALB on port 8000
 resource "aws_security_group" "ecs_sg" {
   name        = "${var.project_name}-ecs-sg"
   description = "Allow port 8000 from ALB only"
@@ -255,7 +255,7 @@ resource "aws_security_group" "ecs_sg" {
   tags = { Name = "${var.project_name}-ecs-sg" }
 }
 
-# RDS — only accepts PostgreSQL traffic from ECS tasks
+# RDS: only accepts PostgreSQL traffic from ECS tasks
 resource "aws_security_group" "rds_sg" {
   name        = "${var.project_name}-rds-sg"
   description = "Allow PostgreSQL 5432 from ECS tasks only"
@@ -280,7 +280,7 @@ resource "aws_security_group" "rds_sg" {
 }
 
 # ---------------------------------------------------------------------------
-# Storage — S3 Buckets (cost-optimized)
+# Storage: S3 Buckets (cost-optimized)
 # ---------------------------------------------------------------------------
 
 # Data Lake: Bronze / Silver / Gold medallion architecture
@@ -298,7 +298,7 @@ resource "aws_s3_bucket_versioning" "data_lake" {
   }
 }
 
-# SSE-S3 (AES-256) is free. Avoid SSE-KMS — costs $0.03 per 10K API calls.
+# SSE-S3 (AES-256) is free. Avoid SSE-KMS: costs $0.03 per 10K API calls.
 resource "aws_s3_bucket_server_side_encryption_configuration" "data_lake" {
   bucket = aws_s3_bucket.data_lake.id
 
@@ -345,7 +345,7 @@ resource "aws_s3_bucket_public_access_block" "data_lake" {
   restrict_public_buckets = true
 }
 
-# MLflow artifact store — separate bucket for model tracking
+# MLflow artifact store: separate bucket for model tracking
 # Cost: typically <$1/month for small teams
 resource "aws_s3_bucket" "mlflow_artifacts" {
   bucket = "${var.project_name}-mlflow-artifacts-${data.aws_caller_identity.current.account_id}"
@@ -379,7 +379,7 @@ resource "aws_s3_bucket_public_access_block" "mlflow_artifacts" {
   restrict_public_buckets = true
 }
 
-# Terraform state bucket — no lifecycle rules; state files are small
+# Terraform state bucket: no lifecycle rules; state files are small
 # Cost: negligible (<$0.01/month)
 resource "aws_s3_bucket" "tfstate" {
   bucket = "aidataboon-tfstate"
@@ -408,7 +408,7 @@ resource "aws_s3_bucket_public_access_block" "tfstate" {
 }
 
 # ---------------------------------------------------------------------------
-# Database — RDS PostgreSQL 16 with pgvector
+# Database: RDS PostgreSQL 16 with pgvector
 # ---------------------------------------------------------------------------
 # Alternative: Neon.tech free tier saves ~$20/month (0.5 GB storage, serverless)
 # Use Neon for dev/staging; RDS only when you need dedicated compute + pgvector.
@@ -445,7 +445,7 @@ resource "aws_db_subnet_group" "main" {
 }
 
 # Cost: db.t3.micro = ~$0/month (free tier yr 1), ~$15/month after
-# Multi-AZ doubles the cost — disabled for cost optimization.
+# Multi-AZ doubles the cost: disabled for cost optimization.
 # Enable multi_az = true for production-critical workloads (~$30/month).
 resource "aws_db_instance" "postgres" {
   identifier        = "${var.project_name}-postgres"
@@ -485,7 +485,7 @@ resource "aws_db_instance" "postgres" {
 }
 
 # ---------------------------------------------------------------------------
-# ECR — Container Registry
+# ECR: Container Registry
 # ---------------------------------------------------------------------------
 # Cost: $0.10/GB/month for storage; first 500MB/month free
 
@@ -494,7 +494,7 @@ resource "aws_ecr_repository" "api" {
   image_tag_mutability = "MUTABLE"
 
   image_scanning_configuration {
-    scan_on_push = true # free — scans for CVEs on every push
+    scan_on_push = true # free: scans for CVEs on every push
   }
 
   tags = { Name = "${var.project_name}-ecr-api" }
@@ -524,7 +524,7 @@ resource "aws_ecr_lifecycle_policy" "api" {
 # ECS Cluster + Task Definitions
 # ---------------------------------------------------------------------------
 
-# Container insights disabled by default — adds ~$0.30/GB of log data ingested.
+# Container insights disabled by default; adds ~$0.30/GB of log data ingested.
 # Enable in production if you need detailed metrics: containerInsights = "enabled"
 resource "aws_ecs_cluster" "main" {
   name = "${var.project_name}-cluster"
@@ -665,7 +665,7 @@ resource "aws_ecs_task_definition" "worker" {
 }
 
 # ---------------------------------------------------------------------------
-# ALB — Application Load Balancer
+# ALB: Application Load Balancer
 # ---------------------------------------------------------------------------
 # Cost: ~$16/month (ALB fixed fee) + $0.008/LCU-hour
 
@@ -828,7 +828,7 @@ resource "aws_appautoscaling_policy" "ecs_cpu" {
 }
 
 # ---------------------------------------------------------------------------
-# IAM — Least Privilege Roles
+# IAM: Least Privilege Roles
 # ---------------------------------------------------------------------------
 
 # ECS Task Role: what the application code can do
@@ -916,7 +916,7 @@ resource "aws_iam_role_policy" "ecs_execution_ssm" {
   })
 }
 
-# OIDC Provider for GitHub Actions — no static AWS credentials needed
+# OIDC Provider for GitHub Actions; no static AWS credentials needed
 # See: https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services
 resource "aws_iam_openid_connect_provider" "github_actions" {
   url = "https://token.actions.githubusercontent.com"
@@ -929,7 +929,7 @@ resource "aws_iam_openid_connect_provider" "github_actions" {
   tags = { Name = "${var.project_name}-github-oidc" }
 }
 
-# GitHub Actions Deploy Role — assumed via OIDC (zero static credentials)
+# GitHub Actions Deploy Role: assumed via OIDC (zero static credentials)
 resource "aws_iam_role" "github_actions_deploy" {
   name = "${var.project_name}-github-actions-deploy"
 
@@ -947,7 +947,7 @@ resource "aws_iam_role" "github_actions_deploy" {
             "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
           }
           StringLike = {
-            # Restrict to your specific repo — change to your GitHub org/repo
+            # Restrict to your specific repo; change to your GitHub org/repo
             "token.actions.githubusercontent.com:sub" = "repo:yourusername/aidataboon:*"
           }
         }
@@ -1021,7 +1021,7 @@ resource "aws_iam_role_policy" "github_actions_deploy" {
 }
 
 # ---------------------------------------------------------------------------
-# Secrets + Config — SSM Parameter Store (free for standard params)
+# Secrets + Config: SSM Parameter Store (free for standard params)
 # ---------------------------------------------------------------------------
 # Alternative would be Secrets Manager at $0.40/secret/month.
 # SSM Parameter Store standard params are FREE. Use SecureString for encryption.
@@ -1066,7 +1066,7 @@ resource "aws_ssm_parameter" "airflow_fernet_key" {
 }
 
 # ---------------------------------------------------------------------------
-# Monitoring — CloudWatch (minimal cost configuration)
+# Monitoring: CloudWatch (minimal cost configuration)
 # ---------------------------------------------------------------------------
 
 # 7-day retention reduces log storage cost significantly.
@@ -1088,7 +1088,7 @@ resource "aws_sns_topic" "alerts" {
 resource "aws_sns_topic_subscription" "email_alert" {
   topic_arn = aws_sns_topic.alerts.arn
   protocol  = "email"
-  endpoint  = "ops@aidataboon.com" # replace with your ops email
+  endpoint  = "ops@example.com" # replace with your ops email
 }
 
 # Alert: ALB 5XX error rate > 1% over 5 minutes
@@ -1132,7 +1132,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_5xx_rate" {
     }
   }
 
-  alarm_description = "ALB 5XX error rate exceeded 1% — check ECS service logs"
+  alarm_description = "ALB 5XX error rate exceeded 1%; check ECS service logs"
   alarm_actions     = [aws_sns_topic.alerts.arn]
   ok_actions        = [aws_sns_topic.alerts.arn]
 
@@ -1146,7 +1146,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_5xx_rate" {
 # ---------------------------------------------------------------------------
 
 output "alb_dns_name" {
-  description = "ALB DNS name — point aidataboon.com CNAME here (or use Route53 alias)"
+  description = "ALB DNS name: point aidataboon.com CNAME here (or use Route53 alias)"
   value       = aws_lb.main.dns_name
 }
 
@@ -1162,16 +1162,16 @@ output "ecs_cluster_name" {
 }
 
 output "ecr_repository_url" {
-  description = "ECR repository URL — use as docker push target in CI/CD"
+  description = "ECR repository URL: use as docker push target in CI/CD"
   value       = aws_ecr_repository.api.repository_url
 }
 
 output "task_role_arn" {
-  description = "ECS task IAM role ARN — attach additional policies here if needed"
+  description = "ECS task IAM role ARN; attach additional policies here if needed"
   value       = aws_iam_role.ecs_task.arn
 }
 
 output "github_actions_role_arn" {
-  description = "OIDC role ARN for GitHub Actions — set as AWS_DEPLOY_ROLE_ARN in repo vars"
+  description = "OIDC role ARN for GitHub Actions; set as AWS_DEPLOY_ROLE_ARN in repo vars"
   value       = aws_iam_role.github_actions_deploy.arn
 }

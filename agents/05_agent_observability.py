@@ -9,7 +9,7 @@ Implements ADR-2 (00_project_design.md):
     and cost/budget guardrails
   - write_dashboard(): drops a 7-panel Grafana dashboard JSON into the data platform's
     existing Grafana dashboard volume (data_platform/07_observability/
-    grafana/dashboards/) — no docker-compose changes needed.
+    grafana/dashboards/): no docker-compose changes needed.
 
 Standalone demo:
     uv run python agents/05_agent_observability.py
@@ -30,7 +30,7 @@ from typing import Any
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(name)s] %(levelname)s — %(message)s",
+    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
     datefmt="%H:%M:%S",
 )
 log = logging.getLogger("aidataboon.agent_obs")
@@ -49,7 +49,7 @@ try:
     _OTEL_AVAILABLE = True
 except ImportError:  # pragma: no cover
     _OTEL_AVAILABLE = False
-    log.warning("opentelemetry-sdk not installed — agent tracing disabled")
+    log.warning("opentelemetry-sdk not installed: agent tracing disabled")
 
 try:
     from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
@@ -58,7 +58,7 @@ try:
 except ImportError:  # pragma: no cover
     _OTEL_OTLP_AVAILABLE = False
     if _OTEL_AVAILABLE:
-        log.warning("OTLP exporter not installed — agent tracing falls back to console export")
+        log.warning("OTLP exporter not installed: agent tracing falls back to console export")
 
 try:
     from prometheus_client import (
@@ -73,7 +73,7 @@ try:
     _PROMETHEUS_AVAILABLE = True
 except ImportError:  # pragma: no cover
     _PROMETHEUS_AVAILABLE = False
-    log.warning("prometheus_client not installed — /metrics falls back to hand-rolled exposition text")
+    log.warning("prometheus_client not installed: /metrics falls back to hand-rolled exposition text")
 
 
 # ---------------------------------------------------------------------------
@@ -89,7 +89,7 @@ class ObservabilityConfig:
     )
 
 
-# OTel GenAI semantic-convention attribute keys (declared as plain strings —
+# OTel GenAI semantic-convention attribute keys (declared as plain strings:
 # opentelemetry.semconv._incubating is private/unstable, so we don't import it).
 GEN_AI_SYSTEM = "gen_ai.system"
 GEN_AI_REQUEST_MODEL = "gen_ai.request.model"
@@ -122,7 +122,7 @@ def setup_tracing(config: ObservabilityConfig | None = None) -> trace.Tracer | N
             provider.add_span_processor(BatchSpanProcessor(exporter))
             backend = f"otlp@{cfg.otel_exporter_endpoint}"
         except Exception as exc:  # pragma: no cover - defensive
-            log.warning("OTLP exporter init failed (%s) — falling back to console export", exc)
+            log.warning("OTLP exporter init failed (%s): falling back to console export", exc)
             provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))
     else:
         provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))

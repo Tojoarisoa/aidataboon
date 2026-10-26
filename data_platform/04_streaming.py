@@ -1,5 +1,5 @@
 """
-AIDataBoon — Real-Time Streaming Pipeline
+AIDataBoon: Real-Time Streaming Pipeline
 
 Architecture:
   HN API (poll) → Kafka Producer → aidataboon.hn.events topic
@@ -32,13 +32,13 @@ import requests
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(name)s] %(levelname)s — %(message)s",
+    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
     datefmt="%H:%M:%S",
 )
 logger = logging.getLogger("aidataboon.streaming")
 
 # ---------------------------------------------------------------------------
-# Optional heavy imports — gracefully degrade for demo mode
+# Optional heavy imports: gracefully degrade for demo mode
 # ---------------------------------------------------------------------------
 try:
     from confluent_kafka import Producer, Consumer, KafkaError, KafkaException
@@ -48,7 +48,7 @@ try:
     KAFKA_AVAILABLE = True
 except ImportError:
     KAFKA_AVAILABLE = False
-    logger.warning("confluent_kafka not installed — running in simulation mode")
+    logger.warning("confluent_kafka not installed: running in simulation mode")
 
 try:
     import duckdb
@@ -57,10 +57,10 @@ except ImportError:
     DUCKDB_AVAILABLE = False
 
 # ---------------------------------------------------------------------------
-# SECTION 1 — Avro Schemas + Schema Registry
+# SECTION 1: Avro Schemas + Schema Registry
 # ---------------------------------------------------------------------------
 
-# HN story event — 384-bit compatible Avro schema dict
+# HN story event: 384-bit compatible Avro schema dict
 HNEventSchema: dict[str, Any] = {
     "type": "record",
     "name": "HNEvent",
@@ -121,7 +121,7 @@ class SchemaRegistryClient:
                 self._client = _SRClient({"url": url})
                 logger.info("Schema Registry connected: %s", url)
             except Exception as exc:
-                logger.warning("Schema Registry unavailable (%s) — stub mode", exc)
+                logger.warning("Schema Registry unavailable (%s): stub mode", exc)
 
     def register_schema(self, subject: str, schema: dict[str, Any]) -> int:
         """Register an Avro schema under *subject*; return schema ID."""
@@ -172,7 +172,7 @@ class SchemaRegistryClient:
 
 
 # ---------------------------------------------------------------------------
-# SECTION 2 — Producer
+# SECTION 2: Producer
 # ---------------------------------------------------------------------------
 
 KAFKA_BOOTSTRAP = "localhost:9092"
@@ -187,7 +187,7 @@ HN_ALGOLIA_URL = (
 
 class AIDataBoonProducer:
     """
-    Base producer — idempotent, all-acks, unlimited retries.
+    Base producer: idempotent, all-acks, unlimited retries.
 
     Exactly-once delivery on the producer side requires:
       - enable.idempotence = true  (deduplicates retries within a session)
@@ -356,13 +356,13 @@ class HNEventProducer(AIDataBoonProducer):
         self._running = False
         self.flush()
         logger.info(
-            "HNEventProducer stopped — published=%d errors=%d",
+            "HNEventProducer stopped: published=%d errors=%d",
             self.published_count, self.error_count,
         )
 
 
 # ---------------------------------------------------------------------------
-# SECTION 3 — Consumer with Exactly-Once
+# SECTION 3: Consumer with Exactly-Once
 # ---------------------------------------------------------------------------
 
 class AIDataBoonConsumer:
@@ -419,7 +419,7 @@ class AIDataBoonConsumer:
         if self._consumer:
             self._consumer.close()
         logger.info(
-            "Consumer stopped — processed=%d errors=%d",
+            "Consumer stopped: processed=%d errors=%d",
             self.processed_count, self.error_count,
         )
 
@@ -432,7 +432,7 @@ class HNEventConsumer(AIDataBoonConsumer):
       1. Poll a batch
       2. Enrich each event
       3. Write to DuckDB (Silver)
-      4. Commit offsets — only on success (abort if write fails)
+      4. Commit offsets: only on success (abort if write fails)
     """
 
     CATEGORY_RULES: dict[str, list[str]] = {
@@ -547,7 +547,7 @@ class HNEventConsumer(AIDataBoonConsumer):
         )
 
     def run(self, poll_timeout: float = 1.0) -> None:
-        """Main consumer loop — blocks until `stop()` is called."""
+        """Main consumer loop: blocks until `stop()` is called."""
         self.subscribe([TOPIC_HN_EVENTS])
         self._running = True
 
@@ -589,11 +589,11 @@ class HNEventConsumer(AIDataBoonConsumer):
                     event.get("story_id"), exc,
                 )
                 self.error_count += 1
-                # Do NOT commit — message will be reprocessed
+                # Do NOT commit: message will be reprocessed
 
 
 # ---------------------------------------------------------------------------
-# SECTION 4 — Windowed Aggregations (Flink-style, pure Python)
+# SECTION 4: Windowed Aggregations (Flink-style, pure Python)
 # ---------------------------------------------------------------------------
 
 @dataclass
@@ -673,7 +673,7 @@ class TumblingWindow:
 
 class SlidingWindow:
     """
-    Overlapping windows — an event may belong to multiple windows.
+    Overlapping windows: an event may belong to multiple windows.
     size=3600s, slide=300s → 12 overlapping windows per event.
     """
 
@@ -720,7 +720,7 @@ class SlidingWindow:
 
 class SessionWindow:
     """
-    Session windows per user — a new window begins after *gap_seconds*
+    Session windows per user: a new window begins after *gap_seconds*
     of inactivity for that user.
     """
 
@@ -834,7 +834,7 @@ class StreamAggregator:
 
 
 # ---------------------------------------------------------------------------
-# SECTION 5 — Dead Letter Queue
+# SECTION 5: Dead Letter Queue
 # ---------------------------------------------------------------------------
 
 TOPIC_DLQ = "aidataboon.hn.events.dlq"
@@ -971,13 +971,13 @@ class DLQReprocessor:
 
         self._producer.flush()
         logger.info(
-            "DLQ reprocess complete — repaired=%d failed=%d",
+            "DLQ reprocess complete: repaired=%d failed=%d",
             self.repaired_count, self.failed_count,
         )
 
 
 # ---------------------------------------------------------------------------
-# SECTION 6 — Consumer Lag Monitor
+# SECTION 6: Consumer Lag Monitor
 # ---------------------------------------------------------------------------
 
 class PrometheusCounter:
@@ -1110,7 +1110,7 @@ class LagMonitor:
 
 
 # ---------------------------------------------------------------------------
-# SECTION 7 — Demo Runner
+# SECTION 7: Demo Runner
 # ---------------------------------------------------------------------------
 
 def _create_topics_stub(topics: list[str]) -> None:
@@ -1145,7 +1145,7 @@ def run_streaming_demo() -> None:
       7. Print consumer lag (stub)
     """
     logger.info("=" * 60)
-    logger.info("AIDataBoon Streaming Pipeline — Demo")
+    logger.info("AIDataBoon Streaming Pipeline: Demo")
     logger.info("=" * 60)
 
     # -- 1. Topics -----------------------------------------------------------
@@ -1236,11 +1236,11 @@ def run_streaming_demo() -> None:
 
     logger.info("\nDemo complete.")
     logger.info(
-        "Producer — published=%d errors=%d",
+        "Producer: published=%d errors=%d",
         producer.published_count, producer.error_count,
     )
     logger.info(
-        "Consumer — processed=%d errors=%d",
+        "Consumer: processed=%d errors=%d",
         consumer.processed_count, consumer.error_count,
     )
 

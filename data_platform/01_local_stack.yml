@@ -1,6 +1,6 @@
 # =============================================================================
-# AIDataBoon — Local Development Stack
-# Docker Compose v2 — Production-quality local environment
+# AIDataBoon: Local Development Stack
+# Docker Compose v2: Production-quality local environment
 # Domain: aidataboon.com
 #
 # Services (18 total):
@@ -85,7 +85,7 @@ x-airflow-common: &airflow-common
 # =============================================================================
 # SECTION 1: Core Infrastructure
 # PostgreSQL (application DB + Airflow meta + MLflow backend + pgvector)
-# MinIO (S3-compatible object storage — Bronze/Silver/Gold + MLflow artifacts)
+# MinIO (S3-compatible object storage: Bronze/Silver/Gold + MLflow artifacts)
 # Redis (Celery broker for Airflow workers)
 # =============================================================================
 
@@ -140,7 +140,7 @@ services:
         -c random_page_cost=1.1
 
   # ---------------------------------------------------------------------------
-  # MinIO — S3-compatible object storage
+  # MinIO: S3-compatible object storage
   # Buckets (created by airflow-init or manual mc commands):
   #   aidataboon-bronze, aidataboon-silver, aidataboon-gold, mlflow-artifacts
   # Console: http://localhost:9001 (minioadmin / minioadmin123)
@@ -178,7 +178,7 @@ services:
     restart: unless-stopped
 
   # ---------------------------------------------------------------------------
-  # MinIO init — creates required buckets on first start
+  # MinIO init: creates required buckets on first start
   # One-shot container (no restart)
   # ---------------------------------------------------------------------------
   minio-init:
@@ -203,7 +203,7 @@ services:
     restart: "no"
 
   # ---------------------------------------------------------------------------
-  # Redis 7 — Celery broker for Airflow CeleryExecutor
+  # Redis 7: Celery broker for Airflow CeleryExecutor
   # Also used as Feast online store for feature serving
   # ---------------------------------------------------------------------------
   redis:
@@ -239,7 +239,7 @@ services:
 # =============================================================================
 
   # ---------------------------------------------------------------------------
-  # Zookeeper — Kafka coordination (required for Confluent 7.6)
+  # Zookeeper: Kafka coordination (required for Confluent 7.6)
   # Note: Kafka 3.x supports KRaft mode without Zookeeper, but Confluent
   #       7.6 connectors are more stable with Zookeeper in dev setups.
   # ---------------------------------------------------------------------------
@@ -275,7 +275,7 @@ services:
     restart: unless-stopped
 
   # ---------------------------------------------------------------------------
-  # Apache Kafka (Confluent 7.6) — single broker dev setup
+  # Apache Kafka (Confluent 7.6): single broker dev setup
   # KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1 required for single broker
   # Topics auto-created by producers; retention: 7 days / 1GB per topic
   # ---------------------------------------------------------------------------
@@ -335,7 +335,7 @@ services:
     restart: unless-stopped
 
   # ---------------------------------------------------------------------------
-  # Confluent Schema Registry — Avro/JSON Schema enforcement for Kafka topics
+  # Confluent Schema Registry: Avro/JSON Schema enforcement for Kafka topics
   # Producers register schemas; consumers validate on read
   # UI: http://localhost:8081
   # ---------------------------------------------------------------------------
@@ -372,7 +372,7 @@ services:
     restart: unless-stopped
 
   # ---------------------------------------------------------------------------
-  # Kafka Connect (Debezium 2.5) — CDC connectors
+  # Kafka Connect (Debezium 2.5): CDC connectors
   # Used for: Postgres CDC → Kafka (change capture for Silver/Gold writes)
   # Connectors mounted from ./04_streaming/connectors/
   # REST API: http://localhost:8083
@@ -433,7 +433,7 @@ services:
 # =============================================================================
 
   # ---------------------------------------------------------------------------
-  # Airflow Init — one-time initialization container
+  # Airflow Init: one-time initialization container
   # Runs DB migrations (airflow db migrate) and creates admin user
   # Must complete successfully before other Airflow services start
   # ---------------------------------------------------------------------------
@@ -465,7 +465,7 @@ services:
           --password admin \
           --firstname AIDataBoon \
           --lastname Admin \
-          --email admin@aidataboon.com || true
+          --email admin@example.com || true
 
         # Create Airflow connections for MinIO and PostgreSQL
         airflow connections add minio_local \
@@ -490,7 +490,7 @@ services:
     restart: "no"
 
   # ---------------------------------------------------------------------------
-  # Airflow Webserver — UI at http://localhost:8080
+  # Airflow Webserver: UI at http://localhost:8080
   # Default credentials: admin / admin
   # ---------------------------------------------------------------------------
   airflow-webserver:
@@ -522,7 +522,7 @@ services:
           memory: 256M
 
   # ---------------------------------------------------------------------------
-  # Airflow Scheduler — DAG parsing and task scheduling
+  # Airflow Scheduler: DAG parsing and task scheduling
   # Heartbeat every 5 seconds; DAG scan every 30 seconds
   # ---------------------------------------------------------------------------
   airflow-scheduler:
@@ -552,7 +552,7 @@ services:
           memory: 256M
 
   # ---------------------------------------------------------------------------
-  # Airflow Celery Worker — executes DAG tasks
+  # Airflow Celery Worker: executes DAG tasks
   # Queue: default (expand to named queues for task routing in production)
   # Concurrency: 4 tasks simultaneously per worker
   # ---------------------------------------------------------------------------
@@ -600,12 +600,12 @@ services:
 
 # =============================================================================
 # SECTION 4: ML Platform
-# MLflow — experiment tracking + model registry + artifact store (MinIO)
-# Feast — feature store server (offline: DuckDB, online: Redis)
+# MLflow: experiment tracking + model registry + artifact store (MinIO)
+# Feast: feature store server (offline: DuckDB, online: Redis)
 # =============================================================================
 
   # ---------------------------------------------------------------------------
-  # MLflow 2.x — ML experiment tracking and model registry
+  # MLflow 2.x: ML experiment tracking and model registry
   # Backend: PostgreSQL (mlflow database)
   # Artifacts: MinIO at s3://mlflow-artifacts/
   # UI: http://localhost:5000
@@ -665,7 +665,7 @@ services:
     restart: unless-stopped
 
   # ---------------------------------------------------------------------------
-  # Feast Feature Server 0.36 — online feature serving
+  # Feast Feature Server 0.36: online feature serving
   # Offline store: DuckDB (reads Gold Delta tables from MinIO)
   # Online store: Redis (materialized features for low-latency serving)
   # Feature repo mounted from ./06_ml_platform/feast/
@@ -717,13 +717,13 @@ services:
 
 # =============================================================================
 # SECTION 5: RAG API Service
-# FastAPI application — the core product surface
+# FastAPI application: the core product surface
 # Handles: query embedding, ANN search, re-ranking, answer generation
 # Dockerfile: ./Dockerfile.rag (built from 05_rag_service.py)
 # =============================================================================
 
   # ---------------------------------------------------------------------------
-  # RAG API — FastAPI application
+  # RAG API: FastAPI application
   # Endpoints: POST /search, GET /trending, GET /topics, GET /health, GET /metrics
   # Embedding: sentence-transformers all-MiniLM-L6-v2 (bundled in image)
   # Vector DB: pgvector via psycopg2
@@ -773,9 +773,11 @@ services:
       EMBEDDING_BATCH_SIZE: "64"
       RERANKER_MODEL: cross-encoder/ms-marco-MiniLM-L-6-v2
       SENTENCE_TRANSFORMERS_HOME: /app/models
-      # LLM for answer generation (local Ollama or OpenAI fallback)
+      # LLM for answer generation (Claude or OpenAI; none = extractive answers)
       LLM_PROVIDER: "${LLM_PROVIDER:-none}"
       OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      ANTHROPIC_MODEL: "${ANTHROPIC_MODEL:-claude-haiku-5-5}"
       # Observability
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
       OTEL_SERVICE_NAME: aidataboon-rag-api
@@ -821,7 +823,7 @@ services:
 # =============================================================================
 
   # ---------------------------------------------------------------------------
-  # Prometheus 2.x — metrics collection and alerting
+  # Prometheus 2.x: metrics collection and alerting
   # Scrapes: all services with /metrics endpoints
   # Config: ./07_observability/prometheus/prometheus.yml
   # UI: http://localhost:9090
@@ -863,7 +865,7 @@ services:
     restart: unless-stopped
 
   # ---------------------------------------------------------------------------
-  # Grafana 10 — dashboards and alerting
+  # Grafana 10: dashboards and alerting
   # Auto-provisioned datasources: Prometheus, Jaeger (via datasources.yml)
   # GF_AUTH_ANONYMOUS_ENABLED=true for frictionless local development
   # Default admin: admin / admin
@@ -878,7 +880,7 @@ services:
     environment:
       GF_SERVER_ROOT_URL: http://localhost:3000
       GF_SERVER_DOMAIN: localhost
-      # Auth — open for local dev, disable anonymous in production
+      # Auth: open for local dev, disable anonymous in production
       GF_AUTH_ANONYMOUS_ENABLED: "true"
       GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
       GF_AUTH_DISABLE_LOGIN_FORM: "false"
@@ -917,7 +919,7 @@ services:
     restart: unless-stopped
 
   # ---------------------------------------------------------------------------
-  # OpenTelemetry Collector — central telemetry pipeline
+  # OpenTelemetry Collector: central telemetry pipeline
   # Receives: OTLP gRPC (4317) + OTLP HTTP (4318) + StatsD (8125 UDP)
   # Exports: Prometheus (metrics), Jaeger (traces)
   # Config: ./07_observability/otel/otel-collector-config.yml
@@ -929,8 +931,8 @@ services:
     volumes:
       - ./07_observability/otel/otel-collector-config.yml:/etc/otel-collector-config.yml:ro
     ports:
-      - "4317:4317"    # OTLP gRPC — used by FastAPI + Airflow
-      - "4318:4318"    # OTLP HTTP — used by browsers / scripts
+      - "4317:4317"    # OTLP gRPC: used by FastAPI + Airflow
+      - "4318:4318"    # OTLP HTTP: used by browsers / scripts
       - "8889:8889"    # Prometheus metrics exporter (scraped by Prometheus)
       - "13133:13133"  # Health check extension
     healthcheck:
@@ -952,7 +954,7 @@ services:
     restart: unless-stopped
 
   # ---------------------------------------------------------------------------
-  # Jaeger — distributed tracing UI
+  # Jaeger: distributed tracing UI
   # Receives spans from OTel Collector (via OTLP or Jaeger protocol)
   # UI: http://localhost:16686
   # Traces FastAPI request lifecycle: embed → search → rerank → respond
@@ -990,7 +992,7 @@ services:
 
 # =============================================================================
 # VOLUMES
-# All named volumes — persisted across container restarts
+# All named volumes: persisted across container restarts
 # Use "docker compose down -v" to remove all volumes (full reset)
 # =============================================================================
 
@@ -1054,7 +1056,7 @@ volumes:
 
 # =============================================================================
 # NETWORKS
-# Single bridge network — all containers communicate by service name
+# Single bridge network: all containers communicate by service name
 # External services (Neon, Upstash, Render) use host-level connectivity
 # =============================================================================
 

@@ -104,7 +104,7 @@ variable "worker_script_name" {
 }
 
 # ---------------------------------------------------------------------------
-# API Gateway — Cloudflare Worker (proxies agents.aidataboon.com -> Render)
+# API Gateway: Cloudflare Worker (proxies agents.aidataboon.com -> Render)
 # ---------------------------------------------------------------------------
 
 # Cost: 100K requests/day free, then $0.30/million. Proxies /agents/*,
@@ -116,7 +116,7 @@ resource "cloudflare_worker_script" "agents_gateway" {
   module     = true
 
   content = <<-JS
-    // AIDataBoon Agents Gateway — proxies ${var.agents_subdomain}.${var.domain_name}/*
+    // AIDataBoon Agents Gateway: proxies ${var.agents_subdomain}.${var.domain_name}/*
     // to the Render agent API (06_agent_api.py). Per-IP rate limiting is
     // enforced by the shared "rate_limit_api" cloudflare_ruleset in
     // data_platform/09_cloudflare_infra.tf, which runs ahead of this
@@ -195,7 +195,7 @@ resource "cloudflare_record" "agents" {
 }
 
 # ---------------------------------------------------------------------------
-# Edge Rules — Rate Limiting
+# Edge Rules: Rate Limiting
 # ---------------------------------------------------------------------------
 
 # Per-IP rate limiting for the agent API is defined in

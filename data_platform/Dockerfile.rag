@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # =============================================================================
-# AIDataBoon RAG API — container image for 05_rag_service.py
+# AIDataBoon RAG API: container image for 05_rag_service.py
 #
 # Build context is data_platform/ (this directory):
 #   docker compose -f 01_local_stack.yml build rag-api
@@ -12,7 +12,7 @@
 # =============================================================================
 
 # ---------------------------------------------------------------------------
-# Stage 1: builder — install Python deps into a venv
+# Stage 1 (builder): install Python deps into a venv
 # ---------------------------------------------------------------------------
 ARG PYTHON_VERSION=3.11
 FROM python:${PYTHON_VERSION}-slim AS builder
@@ -28,7 +28,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements-rag.txt
 
 # ---------------------------------------------------------------------------
-# Stage 2: runtime — slim image, non-root user, curl for healthchecks
+# Stage 2 (runtime): slim image, non-root user, curl for healthchecks
 # ---------------------------------------------------------------------------
 ARG PYTHON_VERSION=3.11
 FROM python:${PYTHON_VERSION}-slim AS runtime

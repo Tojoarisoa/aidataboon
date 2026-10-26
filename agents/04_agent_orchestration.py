@@ -37,7 +37,7 @@ import numpy as np
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(name)s] %(levelname)s — %(message)s",
+    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
     datefmt="%H:%M:%S",
 )
 log = logging.getLogger("aidataboon.agent")
@@ -125,7 +125,7 @@ class EmbeddingModel:
             try:
                 self._model = SentenceTransformer(name)
             except Exception as exc:
-                log.warning("Failed to load sentence-transformers model %s (%s) — using hash embeddings", name, exc)
+                log.warning("Failed to load sentence-transformers model %s (%s): using hash embeddings", name, exc)
 
     @property
     def backend(self) -> str:
@@ -367,7 +367,7 @@ class AgentOrchestrator:
             try:
                 return self.prompt_provider(name, user_id)
             except Exception as exc:
-                log.warning("prompt_provider failed for %s (%s) — using DEFAULT_PROMPTS", name, exc)
+                log.warning("prompt_provider failed for %s (%s): using DEFAULT_PROMPTS", name, exc)
         return DEFAULT_PROMPTS[name]
 
     # -- nodes ------------------------------------------------------------
@@ -457,7 +457,7 @@ class AgentOrchestrator:
 
         system = self._get_prompt("agent.answerer.system", state.get("user_id"))
         docs_text = "\n".join(
-            f"[{i + 1}] {d.get('title', '')} — {d.get('body', d.get('summary', ''))[:300]}"
+            f"[{i + 1}] {d.get('title', '')}: {d.get('body', d.get('summary', ''))[:300]}"
             for i, d in enumerate(docs)
         )
         user = f"Question: {state['query']}\n\nDocuments:\n{docs_text}"
@@ -608,7 +608,7 @@ class AgentMemory:
 
     def _connect_postgres(self, database_url: str) -> None:
         if not _PSYCOPG_AVAILABLE:
-            log.warning("psycopg not installed — using in-memory agent memory")
+            log.warning("psycopg not installed: using in-memory agent memory")
             return
         try:
             conn = psycopg.connect(database_url, autocommit=True, row_factory=dict_row)
@@ -616,7 +616,7 @@ class AgentMemory:
             self._conn = conn
             log.info("AgentMemory connected to Postgres")
         except Exception as exc:
-            log.warning("Postgres unavailable (%s) — using in-memory agent memory", exc)
+            log.warning("Postgres unavailable (%s): using in-memory agent memory", exc)
             self._conn = None
 
     @property
@@ -808,7 +808,7 @@ class Agent:
             try:
                 cost_usd = self.cost_estimator(self.llm.provider, self.llm.model, result.total_input_tokens, result.total_output_tokens)
             except Exception as exc:
-                log.warning("cost_estimator failed (%s) — recording cost as 0.0", exc)
+                log.warning("cost_estimator failed (%s): recording cost as 0.0", exc)
 
         self.memory.complete_run(run_id, result, latency_ms, cost_usd=cost_usd, status="completed")
         return {

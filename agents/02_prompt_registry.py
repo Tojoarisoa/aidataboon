@@ -23,7 +23,7 @@ from typing import Any
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(name)s] %(levelname)s — %(message)s",
+    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
     datefmt="%H:%M:%S",
 )
 log = logging.getLogger("aidataboon.prompts")
@@ -139,7 +139,7 @@ class PromptRegistry:
 
     def _connect_postgres(self) -> None:
         if not _PSYCOPG_AVAILABLE:
-            log.warning("psycopg not installed — using in-memory prompt registry")
+            log.warning("psycopg not installed: using in-memory prompt registry")
             return
         try:
             conn = psycopg.connect(self.config.database_url, autocommit=True, row_factory=dict_row)
@@ -147,7 +147,7 @@ class PromptRegistry:
             self._conn = conn
             log.info("PromptRegistry connected to Postgres")
         except Exception as exc:
-            log.warning("Postgres unavailable (%s) — using in-memory prompt registry", exc)
+            log.warning("Postgres unavailable (%s): using in-memory prompt registry", exc)
             self._conn = None
 
     @property
@@ -342,7 +342,7 @@ if _FASTAPI_AVAILABLE:
 
 def create_app(registry: PromptRegistry | None = None) -> Any:
     if not _FASTAPI_AVAILABLE:
-        raise RuntimeError("fastapi/pydantic not installed — cannot create prompt registry app")
+        raise RuntimeError("fastapi/pydantic not installed: cannot create prompt registry app")
 
     reg = registry or PromptRegistry()
     seed_default_prompts(reg)

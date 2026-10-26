@@ -1,13 +1,13 @@
 """
-AIDataBoon — ML Platform: Feature Store + Experiment Tracking + Model Serving
+AIDataBoon ML Platform: Feature Store + Experiment Tracking + Model Serving
 
 Stack:
-  Feast — offline/online feature store
-  DuckDB — feature transformations (reads from Gold layer)
-  MLflow 2.x — experiment tracking + model registry
-  scikit-learn — topic classifier (lightweight, no GPU needed)
-  FastAPI wrapper — model serving endpoint
-  PSI — production drift detection
+  Feast: offline/online feature store
+  DuckDB: feature transformations (reads from Gold layer)
+  MLflow 2.x: experiment tracking + model registry
+  scikit-learn: topic classifier (lightweight, no GPU needed)
+  FastAPI wrapper: model serving endpoint
+  PSI: production drift detection
 """
 
 from __future__ import annotations
@@ -39,7 +39,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Section 1 — Feature Store (Feast)
+# Section 1: Feature Store (Feast)
 # ---------------------------------------------------------------------------
 
 FEATURE_STORE_YAML = textwrap.dedent("""\
@@ -225,11 +225,11 @@ class FeatureEngineer:
                 end_date.isoformat(),
             )
         except ImportError:
-            logger.warning("feast not installed — skipping online-store materialisation")
+            logger.warning("feast not installed: skipping online-store materialisation")
 
 
 # ---------------------------------------------------------------------------
-# Section 2 — Training Pipeline
+# Section 2: Training Pipeline
 # ---------------------------------------------------------------------------
 
 TOPIC_LABELS: list[str] = [
@@ -365,7 +365,7 @@ class TrainingPipeline:
             random_state=random_state,
         )
         logger.info(
-            "Split sizes — train: %d, val: %d, test: %d",
+            "Split sizes: train %d, val %d, test %d",
             len(X_train), len(X_val), len(X_test),
         )
         return X_train, X_val, X_test, y_train, y_val, y_test
@@ -394,7 +394,7 @@ class TrainingPipeline:
             "classification_report": report,
         }
         logger.info(
-            "Evaluation — accuracy: %.4f, f1_macro: %.4f",
+            "Evaluation: accuracy %.4f, f1_macro %.4f",
             metrics["accuracy"], metrics["f1_macro"],
         )
         return metrics
@@ -426,7 +426,7 @@ class TrainingPipeline:
 
 
 # ---------------------------------------------------------------------------
-# Section 3 — MLflow Experiment Tracking
+# Section 3: MLflow Experiment Tracking
 # ---------------------------------------------------------------------------
 
 class MLflowTracker:
@@ -532,7 +532,7 @@ class MLflowTracker:
         try:
             self.client.create_registered_model(
                 name=model_name,
-                description="AIDataBoon topic classifier — TF-IDF + LogisticRegression",
+                description="AIDataBoon topic classifier: TF-IDF + LogisticRegression",
             )
         except mlflow.exceptions.MlflowException:
             # Model already exists
@@ -570,7 +570,7 @@ class MLflowTracker:
 
 
 # ---------------------------------------------------------------------------
-# Section 4 — Model Serving (FastAPI)
+# Section 4: Model Serving (FastAPI)
 # ---------------------------------------------------------------------------
 
 try:
@@ -701,7 +701,7 @@ if _FASTAPI_AVAILABLE:
 
 
 # ---------------------------------------------------------------------------
-# Section 5 — Drift Detection
+# Section 5: Drift Detection
 # ---------------------------------------------------------------------------
 
 @dataclass
@@ -860,7 +860,7 @@ class DataDriftMonitor:
 
 
 # ---------------------------------------------------------------------------
-# Section 6 — Main Runner
+# Section 6: Main Runner
 # ---------------------------------------------------------------------------
 
 def run_ml_pipeline(
@@ -877,7 +877,7 @@ def run_ml_pipeline(
     """
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 
-    logger.info("=== AIDataBoon ML Platform — Pipeline Start ===")
+    logger.info("=== AIDataBoon ML Platform: Pipeline Start ===")
 
     # -- Feature engineering -----------------------------------------------
     feat_config = FeatureStoreConfig()
@@ -953,13 +953,13 @@ def run_ml_pipeline(
     drifted_df["score"] = drifted_df["score"] * 2 + np.random.randint(0, 50, n)
     report = monitor.check_batch(drifted_df)
     logger.info(
-        "Drift report — overall: %s, PSI scores: %s, alerts: %s",
+        "Drift report: overall %s, PSI scores %s, alerts %s",
         report.overall_drift,
         {k: f"{v:.4f}" for k, v in report.feature_psi.items()},
         report.alerts,
     )
 
-    logger.info("=== AIDataBoon ML Platform — Pipeline Complete ===")
+    logger.info("=== AIDataBoon ML Platform: Pipeline Complete ===")
 
 
 if __name__ == "__main__":

@@ -1,5 +1,5 @@
 """
-AIDataBoon — Medallion Lakehouse (Bronze → Silver → Gold)
+AIDataBoon: Medallion Lakehouse (Bronze → Silver → Gold)
 
 Stack: DuckDB (query engine) + delta-rs (Delta Lake Python bindings)
 Storage: MinIO locally / Cloudflare R2 in production
@@ -15,7 +15,7 @@ Storage: MinIO locally / Cloudflare R2 in production
                                daily_summary,author_profiles}/
           → also mirrored to ./data/gold/*.parquet for Feast + MLflow (06_ml_platform.py)
 
-Run standalone (no MinIO required — falls back to synthetic Bronze + local Parquet):
+Run standalone (no MinIO required: falls back to synthetic Bronze + local Parquet):
     uv run python data_platform/03_lakehouse.py
 """
 
@@ -33,13 +33,13 @@ import duckdb
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(name)s] %(levelname)s — %(message)s",
+    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
     datefmt="%H:%M:%S",
 )
 log = logging.getLogger("aidataboon.lakehouse")
 
 # ---------------------------------------------------------------------------
-# Optional delta-rs — gracefully degrade to plain Parquet if not installed.
+# Optional delta-rs: gracefully degrade to plain Parquet if not installed.
 # In production, `pip install deltalake` unlocks MERGE, time travel, vacuum,
 # schema evolution and ACID multi-writer guarantees on top of S3/R2/MinIO.
 # ---------------------------------------------------------------------------
@@ -48,17 +48,17 @@ try:
     DELTA_AVAILABLE = True
 except ImportError:
     DELTA_AVAILABLE = False
-    log.warning("deltalake not installed — falling back to Parquet (no MERGE/time-travel)")
+    log.warning("deltalake not installed: falling back to Parquet (no MERGE/time-travel)")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SECTION 1 — LAKEHOUSE ENGINE (DuckDB + S3/MinIO/R2)
+# SECTION 1: LAKEHOUSE ENGINE (DuckDB + S3/MinIO/R2)
 # ─────────────────────────────────────────────────────────────────────────────
 
 @dataclass
 class LakehouseConfig:
     """S3-compatible storage config. Same shape works for MinIO, AWS S3, and
-    Cloudflare R2 — only the endpoint/credentials change between environments.
+    Cloudflare R2: only the endpoint/credentials change between environments.
 
     Defaults target the local MinIO stack; set S3_ENDPOINT_URL / S3_ACCESS_KEY /
     S3_SECRET_KEY (same names used by 02_data_ingestion.py and 05_rag_service.py)
@@ -74,7 +74,7 @@ class LakehouseConfig:
     silver_bucket: str = field(default_factory=lambda: os.environ.get("S3_SILVER_BUCKET", "aidataboon-silver"))
     gold_bucket: str = field(default_factory=lambda: os.environ.get("S3_GOLD_BUCKET", "aidataboon-gold"))
 
-    # Local mirror of Gold tables — read by 06_ml_platform.py / Feast offline store
+    # Local mirror of Gold tables; read by 06_ml_platform.py / Feast offline store
     local_gold_dir: str = "data/gold"
 
 
@@ -89,7 +89,7 @@ class LakehouseEngine:
     def _configure_s3(self) -> bool:
         """Register an S3 secret so `s3://` paths work transparently in SQL.
         Returns False (and disables all `s3://` reads) if the `httpfs`
-        extension can't be installed — e.g. offline / air-gapped sandboxes."""
+        extension can't be installed: e.g. offline / air-gapped sandboxes."""
         try:
             self.con.execute("INSTALL httpfs")
             self.con.execute("LOAD httpfs")
@@ -109,7 +109,7 @@ class LakehouseEngine:
             log.info("DuckDB S3 secret configured for endpoint %s", self.config.s3_endpoint)
             return True
         except Exception as exc:  # pragma: no cover - environment dependent
-            log.warning("S3 configuration skipped (%s) — local-only mode", exc)
+            log.warning("S3 configuration skipped (%s): local-only mode", exc)
             return False
 
     def list_bronze_keys(self, prefix: str) -> list[str]:
@@ -142,7 +142,7 @@ class LakehouseEngine:
             return []
 
     def _storage_options(self) -> dict[str, str]:
-        """delta-rs / object_store storage options — same creds as DuckDB secret."""
+        """delta-rs / object_store storage options; same creds as DuckDB secret."""
         return {
             "AWS_ENDPOINT_URL": self.config.s3_endpoint,
             "AWS_ACCESS_KEY_ID": self.config.s3_access_key,
@@ -156,13 +156,13 @@ class LakehouseEngine:
         """Run `query`, registering each kwarg as a queryable view first.
 
         DuckDB's `FROM <python_var>` replacement scan only inspects the
-        *immediate* calling frame — which here would be this wrapper's
+        *immediate* calling frame: which here would be this wrapper's
         frame (locals: `self`, `query`), not the caller's. Passing
         relations explicitly as kwargs sidesteps that entirely.
 
         The result is materialized eagerly (Arrow) before returning.
         Connection-wide registrations are last-write-wins on a *lazy*
-        relation — without eager materialization, an earlier call's
+        relation: without eager materialization, an earlier call's
         relation would silently re-resolve its alias against whatever a
         later call registered under the same name by the time it's
         finally executed (e.g. when union'd together)."""
@@ -178,7 +178,7 @@ class LakehouseEngine:
         across files via `union_by_name`. Returns None if nothing matches
         (or if S3 is unreachable, e.g. local sandbox with no httpfs).
 
-        `s3_glob` may be a glob pattern or an explicit list of `s3://` URIs —
+        `s3_glob` may be a glob pattern or an explicit list of `s3://` URIs;
         prefer an explicit list on R2, since DuckDB's httpfs glob support
         probes the literal pre-wildcard prefix with a GET and 404s there
         instead of listing."""
@@ -191,7 +191,7 @@ class LakehouseEngine:
             path_arg = f"'{s3_glob}'"
             log_path = s3_glob
         if log_path.startswith("s3://") and not self.s3_available:
-            log.warning("S3 unavailable — skipping %s", log_path)
+            log.warning("S3 unavailable: skipping %s", log_path)
             return None
         try:
             return self.con.sql(
@@ -217,7 +217,7 @@ class LakehouseEngine:
         partition_by: list[str] | None = None,
     ) -> dict[str, Any]:
         """Write a relation as a Delta table (or Parquet if delta-rs absent)."""
-        # `.to_arrow_table()` (not `.arrow()`) — relations built over a
+        # `.to_arrow_table()` (not `.arrow()`): relations built over a
         # `con.register()`'d view come back as a RecordBatchReader from
         # `.arrow()`, which has no `.num_rows` and can only be consumed once.
         arrow_table = relation.to_arrow_table()
@@ -249,14 +249,14 @@ class LakehouseEngine:
                 self.con.register("_delta_scan", dt.to_pyarrow_dataset())
                 return self.con.sql("SELECT * FROM _delta_scan")
             except Exception as exc:
-                log.warning("Delta read failed for %s (%s) — trying Parquet", path, exc)
+                log.warning("Delta read failed for %s (%s): trying Parquet", path, exc)
 
         local_path = path.replace("s3://", "data/").rstrip("/")
         return self.con.sql(f"SELECT * FROM read_parquet('{local_path}/*.parquet', union_by_name=true)")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SECTION 2 — BRONZE LAYER
+# SECTION 2: BRONZE LAYER
 # ─────────────────────────────────────────────────────────────────────────────
 
 @dataclass
@@ -299,7 +299,7 @@ class BronzeProcessor:
         cols = set(relation.columns)
         missing = [f for f in required_fields if f not in cols]
         if missing:
-            log.error("Bronze validation failed — missing fields: %s", missing)
+            log.error("Bronze validation failed, missing fields: %s", missing)
             return False
         return True
 
@@ -325,15 +325,15 @@ class BronzeProcessor:
             result = self.engine.write_delta(relation, path, mode="append", partition_by=["_bronze_source"])
             return result["path"]
         except Exception as exc:
-            log.warning("Bronze Delta write failed for %s (%s) — skipping", table_name, exc)
+            log.warning("Bronze Delta write failed for %s (%s): skipping", table_name, exc)
             return path
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SECTION 3 — SILVER LAYER (unified schema, deduplicated, quality-gated)
+# SECTION 3: SILVER LAYER (unified schema, deduplicated, quality-gated)
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Unified Silver schema — every source maps onto these columns.
+# Unified Silver schema: every source maps onto these columns.
 SILVER_COLUMNS = [
     "id", "source", "title", "content", "abstract", "url", "author",
     "tags", "score", "num_comments", "published_at", "ingested_at", "dedup_hash",
@@ -358,7 +358,7 @@ class SilverProcessor:
         cols = bronze_rel.columns
         # Bronze HN records may come from either the Algolia search API
         # ("objectID", "story_text", "num_comments") or the HN Firebase item
-        # API ("id", "text", "children") — tolerate both.
+        # API ("id", "text", "children"): tolerate both.
         id_expr = "objectID" if _has(cols, "objectID") else "id"
         story_text = "story_text" if _has(cols, "story_text") else ("text" if _has(cols, "text") else "NULL")
         url_expr = "url" if _has(cols, "url") else "NULL"
@@ -449,7 +449,7 @@ class SilverProcessor:
         for other in valid[1:]:
             rel = rel.union(other)
         # Repeated ingestion runs re-fetch overlapping top items, so Bronze
-        # accumulates many duplicate dedup_hash rows across batches — keep
+        # accumulates many duplicate dedup_hash rows across batches; keep
         # only the most-recently-ingested copy of each.
         return self.engine.sql(
             """
@@ -511,7 +511,7 @@ class SilverProcessor:
                 )
                 return {"incoming": incoming, "strategy": "delta_merge", "path": table_path}
             except Exception as exc:
-                log.warning("Delta MERGE unavailable (%s) — full append", exc)
+                log.warning("Delta MERGE unavailable (%s): full append", exc)
 
         # Fallback: anti-join against existing snapshot, then append-only write.
         local_path = Path(table_path.replace("s3://", "data/").rstrip("/"))
@@ -530,7 +530,7 @@ class SilverProcessor:
         try:
             self.engine.write_delta(deduped, table_path, mode="append")
         except Exception as exc:
-            log.warning("Silver Delta write failed for %s (%s) — skipping", table_path, exc)
+            log.warning("Silver Delta write failed for %s (%s): skipping", table_path, exc)
         return {"incoming": incoming, "new_rows": new_rows, "strategy": "anti_join_append", "path": table_path}
 
     def write_silver(self, relation: duckdb.DuckDBPyRelation) -> str:
@@ -539,7 +539,7 @@ class SilverProcessor:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SECTION 4 — GOLD LAYER (aggregated, embedding-ready, feature-ready)
+# SECTION 4: GOLD LAYER (aggregated, embedding-ready, feature-ready)
 # ─────────────────────────────────────────────────────────────────────────────
 
 class GoldProcessor:
@@ -609,7 +609,7 @@ class GoldProcessor:
         )
 
     def build_knowledge_base(self, silver_rel: duckdb.DuckDBPyRelation) -> duckdb.DuckDBPyRelation:
-        """Denormalized table feeding the RAG vector index — one row per
+        """Denormalized table feeding the RAG vector index; one row per
         chunkable document, with everything 05_rag_service.py needs."""
         return self.engine.sql(
             """
@@ -675,11 +675,11 @@ class GoldProcessor:
             result = self.engine.write_delta(relation, path, mode="overwrite", partition_by=partition_by)
             written_path = result["path"]
         except Exception as exc:
-            log.warning("Gold S3 write failed for %s (%s) — local only", name, exc)
+            log.warning("Gold S3 write failed for %s (%s): local only", name, exc)
             written_path = path
 
         if self.engine.s3_available:
-            # Plain Parquet alongside the (possibly failed) Delta write — R2's
+            # Plain Parquet alongside the (possibly failed) Delta write: R2's
             # ListObjectsV2 + start-after combination used by delta-rs to
             # detect existing tables returns NoSuchKey on an empty prefix, so
             # the Delta write above can fail even though plain S3 PUTs work
@@ -705,11 +705,11 @@ class GoldProcessor:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SECTION 5 — DELTA LAKE OPERATIONS (time travel, compaction, vacuum)
+# SECTION 5: DELTA LAKE OPERATIONS (time travel, compaction, vacuum)
 # ─────────────────────────────────────────────────────────────────────────────
 
 class DeltaLakeManager:
-    """Operational toolkit for Delta tables — the commands an AI Data Infra
+    """Operational toolkit for Delta tables; the commands an AI Data Infra
     engineer runs to keep a lakehouse healthy and auditable."""
 
     def __init__(self, engine: LakehouseEngine) -> None:
@@ -735,7 +735,7 @@ class DeltaLakeManager:
         return self.engine.con.sql("SELECT * FROM _delta_tt")
 
     def compact_small_files(self, path: str) -> dict[str, Any]:
-        """OPTIMIZE: bin-pack small Parquet files into larger ones — the
+        """OPTIMIZE: bin-pack small Parquet files into larger ones; the
         single highest-leverage Delta maintenance operation for query cost."""
         if not DELTA_AVAILABLE:
             return {"skipped": True, "reason": "deltalake not installed"}
@@ -746,7 +746,7 @@ class DeltaLakeManager:
 
     def vacuum(self, path: str, retention_hours: int = 168, dry_run: bool = True) -> list[str]:
         """Remove tombstoned files older than `retention_hours` (default 7
-        days). ALWAYS dry-run first in production — vacuum is irreversible
+        days). ALWAYS dry-run first in production; vacuum is irreversible
         and breaks time travel before the retention cutoff."""
         if not DELTA_AVAILABLE:
             return []
@@ -757,7 +757,7 @@ class DeltaLakeManager:
 
     def demonstrate_schema_evolution(self, path: str) -> None:
         """Show that adding a new nullable column doesn't break existing
-        readers — the standard Delta/Iceberg schema-evolution guarantee."""
+        readers: the standard Delta/Iceberg schema-evolution guarantee."""
         if not DELTA_AVAILABLE:
             log.warning("schema evolution demo requires deltalake")
             return
@@ -776,7 +776,7 @@ class DeltaLakeManager:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SECTION 6 — PIPELINE ORCHESTRATION
+# SECTION 6: PIPELINE ORCHESTRATION
 # ─────────────────────────────────────────────────────────────────────────────
 
 @dataclass
@@ -833,7 +833,7 @@ def run_full_pipeline(run_date: date | None = None) -> PipelineResult:
     synthetic sample data so the lakehouse logic can still be exercised."""
     run_date = run_date or datetime.now(timezone.utc).date()
     started = time.monotonic()
-    log.info("=== AIDataBoon Lakehouse Pipeline — %s ===", run_date.isoformat())
+    log.info("=== AIDataBoon Lakehouse Pipeline: %s ===", run_date.isoformat())
 
     engine = LakehouseEngine()
     bronze = BronzeProcessor(engine)
@@ -847,7 +847,7 @@ def run_full_pipeline(run_date: date | None = None) -> PipelineResult:
     github_raw = bronze.ingest_raw("github-trending", run_date)
 
     if hn_raw is None and arxiv_raw is None and github_raw is None:
-        log.info("No Bronze data found in MinIO — using synthetic sample data")
+        log.info("No Bronze data found in MinIO; using synthetic sample data")
         hn_raw, arxiv_raw, github_raw = _sample_bronze_relations(engine)
 
     for name, rel in (("hn", hn_raw), ("arxiv", arxiv_raw), ("github", github_raw)):
@@ -862,19 +862,19 @@ def run_full_pipeline(run_date: date | None = None) -> PipelineResult:
         try:
             silver_parts.append(silver.transform_hn(hn_raw))
         except duckdb.Error as exc:
-            log.warning("transform_hn failed (%s) — skipping hn for this run", exc)
+            log.warning("transform_hn failed (%s): skipping hn for this run", exc)
     if arxiv_raw is not None:
         log.info("arxiv_raw columns: %s", arxiv_raw.columns)
         try:
             silver_parts.append(silver.transform_arxiv(arxiv_raw))
         except duckdb.Error as exc:
-            log.warning("transform_arxiv failed (%s) — skipping arxiv for this run", exc)
+            log.warning("transform_arxiv failed (%s): skipping arxiv for this run", exc)
     if github_raw is not None:
         log.info("github_raw columns: %s", github_raw.columns)
         try:
             silver_parts.append(silver.transform_github(github_raw))
         except duckdb.Error as exc:
-            log.warning("transform_github failed (%s) — skipping github for this run", exc)
+            log.warning("transform_github failed (%s): skipping github for this run", exc)
 
     silver_rel = silver.union_sources(*silver_parts)
     passed, report = silver.quality_gate(silver_rel)
@@ -882,7 +882,7 @@ def run_full_pipeline(run_date: date | None = None) -> PipelineResult:
     result.silver_rows = report["total_rows"]
 
     if not passed:
-        log.error("Silver quality gate failed — aborting before Gold. Report: %s", report)
+        log.error("Silver quality gate failed: aborting before Gold. Report: %s", report)
         result.duration_seconds = time.monotonic() - started
         return result
 
@@ -907,7 +907,7 @@ def run_full_pipeline(run_date: date | None = None) -> PipelineResult:
 
     result.duration_seconds = time.monotonic() - started
     log.info(
-        "Pipeline complete in %.2fs — bronze=%s silver=%d gold=%s",
+        "Pipeline complete in %.2fs: bronze=%s silver=%d gold=%s",
         result.duration_seconds, result.bronze_rows, result.silver_rows, result.gold_tables,
     )
     return result
@@ -916,7 +916,7 @@ def run_full_pipeline(run_date: date | None = None) -> PipelineResult:
 if __name__ == "__main__":
     res = run_full_pipeline()
     print()
-    print("=== AIDataBoon Lakehouse — Run Summary ===")
+    print("=== AIDataBoon Lakehouse: Run Summary ===")
     print(f"  Run date        : {res.run_date}")
     print(f"  Bronze rows     : {res.bronze_rows}")
     print(f"  Silver rows     : {res.silver_rows}")

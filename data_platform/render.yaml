@@ -7,7 +7,7 @@
 #      root directory `data_platform`. Render reads this file and
 #      creates the service below.
 #   3. Set the DATABASE_URL secret (Neon connection string) in the
-#      service's Environment tab — it is intentionally not stored here
+#      service's Environment tab: it is intentionally not stored here
 #      (sync: false).
 #   4. .github/workflows/api-deploy.yml smoke-tests Dockerfile.rag and
 #      deploys through the service's deploy hook (RENDER_DEPLOY_HOOK_API
@@ -16,7 +16,7 @@
 #      No credit card required for the free plan.
 #
 # Free plan: 512MB RAM, shared CPU, spins down after 15 min idle (cold
-# start ~30-50s on the next request — acceptable for a portfolio demo and
+# start ~30-50s on the next request; acceptable for a portfolio demo and
 # matches the "$0/mo, scale-to-zero" goal in 00_project_design.md).
 # Hostname: <service-name>.onrender.com (must match render_api_hostname
 # in 09_cloudflare_infra.tf).

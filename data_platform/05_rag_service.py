@@ -1,30 +1,30 @@
 """
-AIDataBoon — RAG Service (FastAPI)
+AIDataBoon: RAG Service (FastAPI)
 
 Endpoints (see 00_project_design.md, "RAG API LAYER"):
-  GET  /health     — liveness/readiness + per-component backend status
-  POST /search     — {"query": str, "limit": int=5}
+  GET  /health    : liveness/readiness + per-component backend status
+  POST /search    : {"query": str, "limit": int=5}
                       → hybrid retrieval + cross-encoder rerank + answer
-  GET  /trending   — ?source=&hours=  top items by engagement, recency-windowed
-  GET  /topics     — tag/topic frequency + average engagement
-  GET  /metrics    — Prometheus exposition format
+  GET  /trending  : ?source=&hours=  top items by engagement, recency-windowed
+  GET  /topics    : tag/topic frequency + average engagement
+  GET  /metrics   : Prometheus exposition format
 
 Pipeline:
-  1. Embed query           — sentence-transformers `all-MiniLM-L6-v2` (384-dim)
-  2. Hybrid retrieval       — pgvector HNSW cosine search + Postgres BM25
+  1. Embed query          : sentence-transformers `all-MiniLM-L6-v2` (384-dim)
+  2. Hybrid retrieval      : pgvector HNSW cosine search + Postgres BM25
                               (`to_tsvector`/`ts_rank_cd`), fused via
                               Reciprocal Rank Fusion
-  3. Cross-encoder rerank   — `cross-encoder/ms-marco-MiniLM-L-6-v2`
-  4. Feature enrichment     — Feast online store: trending_score, freshness_score
-  5. Answer composition     — Ollama / OpenAI, or extractive fallback
-  6. Response               — answer + cited, scored sources
+  3. Cross-encoder rerank  : `cross-encoder/ms-marco-MiniLM-L-6-v2`
+  4. Feature enrichment    : Feast online store: trending_score, freshness_score
+  5. Answer composition    : Ollama / OpenAI, or extractive fallback
+  6. Response              : answer + cited, scored sources
 
 Every heavy dependency (sentence-transformers, psycopg, redis, feast,
 fastapi/pydantic) degrades gracefully when not installed: this module
 always imports cleanly and its core retrieval logic always runs, against
 an in-memory DuckDB + BM25 fallback seeded from
 `data/gold/knowledge_base.parquet` (written by 03_lakehouse.py),
-`s3://aidataboon-gold/knowledge_base/`, or — if neither exists — a small
+`s3://aidataboon-gold/knowledge_base/`, or, if neither exists, a small
 synthetic knowledge base.
 
 Run standalone (no Postgres/pgvector/models required):
@@ -56,13 +56,13 @@ import numpy as np
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(name)s] %(levelname)s — %(message)s",
+    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
     datefmt="%H:%M:%S",
 )
 log = logging.getLogger("aidataboon.rag")
 
 # ---------------------------------------------------------------------------
-# Optional heavy dependencies — each degrades to a local fallback so this
+# Optional heavy dependencies: each degrades to a local fallback so this
 # module is always importable and `__main__` always runs end-to-end.
 # ---------------------------------------------------------------------------
 try:
@@ -70,7 +70,7 @@ try:
     _ST_AVAILABLE = True
 except ImportError:
     _ST_AVAILABLE = False
-    log.warning("sentence-transformers not installed — using hashing/lexical fallbacks")
+    log.warning("sentence-transformers not installed: using hashing/lexical fallbacks")
 
 try:
     import psycopg
@@ -78,7 +78,7 @@ try:
     _PSYCOPG_AVAILABLE = True
 except ImportError:
     _PSYCOPG_AVAILABLE = False
-    log.warning("psycopg not installed — vector store falls back to in-memory DuckDB")
+    log.warning("psycopg not installed: vector store falls back to in-memory DuckDB")
 
 try:
     import anthropic
@@ -106,7 +106,7 @@ try:
     _FASTAPI_AVAILABLE = True
 except Exception:  # pragma: no cover - e.g. pydantic/fastapi unsupported on this Python
     _FASTAPI_AVAILABLE = False
-    log.warning("fastapi/pydantic unavailable — RAG core is importable, API app is not")
+    log.warning("fastapi/pydantic unavailable: RAG core is importable, API app is not")
 
 
 EMBEDDING_DIM = 384
@@ -159,7 +159,7 @@ def _days_since(value: Any) -> float:
 
 
 def _serialize_source(row: dict[str, Any]) -> dict[str, Any]:
-    """JSON-safe copy of a result row — drop raw vectors, round scores,
+    """JSON-safe copy of a result row; drop raw vectors, round scores,
     ISO-format timestamps."""
     out = dict(row)
     out.pop("embedding", None)
@@ -173,12 +173,12 @@ def _serialize_source(row: dict[str, Any]) -> dict[str, Any]:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SECTION 1 — CONFIGURATION
+# SECTION 1: CONFIGURATION
 # ─────────────────────────────────────────────────────────────────────────────
 
 @dataclass
 class RAGConfig:
-    """Runtime config — every field is overridable via the env vars injected
+    """Runtime config: every field is overridable via the env vars injected
     by `01_local_stack.yml`'s `rag-api` service, with localhost defaults for
     standalone runs."""
 
@@ -186,11 +186,11 @@ class RAGConfig:
     embedding_model: str = field(default_factory=lambda: os.environ.get("EMBEDDING_MODEL", "all-MiniLM-L6-v2"))
     reranker_model: str = field(default_factory=lambda: os.environ.get("RERANKER_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2"))
     # Loading both the embedding model and the cross-encoder reranker
-    # exceeds 512MB on free-tier hosts — disable the reranker there
+    # exceeds 512MB on free-tier hosts; disable the reranker there
     # (falls back to a lexical-overlap score) via RERANKER_ENABLED=false.
     reranker_enabled: bool = field(default_factory=lambda: os.environ.get("RERANKER_ENABLED", "true").lower() != "false")
     # Even on its own, torch + sentence-transformers can push past 512MB on
-    # free-tier hosts — disable to use the deterministic feature-hashing
+    # free-tier hosts: disable to use the deterministic feature-hashing
     # fallback (no torch import) via EMBEDDINGS_ENABLED=false.
     embeddings_enabled: bool = field(default_factory=lambda: os.environ.get("EMBEDDINGS_ENABLED", "true").lower() != "false")
 
@@ -212,7 +212,7 @@ class RAGConfig:
     s3_secret_key: str = field(default_factory=lambda: os.environ.get("S3_SECRET_KEY", "minioadmin123"))
     s3_region: str = field(default_factory=lambda: os.environ.get("S3_REGION", "us-east-1"))
     s3_gold_bucket: str = field(default_factory=lambda: os.environ.get("S3_GOLD_BUCKET", "aidataboon-gold"))
-    # Caps how many Gold rows get embedded at startup — on free-tier hosts
+    # Caps how many Gold rows get embedded at startup; on free-tier hosts
     # (512MB RAM, shared CPU) embedding the full corpus can be slow/OOM.
     kb_max_docs: int = field(default_factory=lambda: int(os.environ.get("KB_MAX_DOCS", "300")))
 
@@ -247,13 +247,13 @@ class RAGConfig:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SECTION 2 — EMBEDDINGS
+# SECTION 2: EMBEDDINGS
 # ─────────────────────────────────────────────────────────────────────────────
 
 class EmbeddingModel:
     """Wraps sentence-transformers `all-MiniLM-L6-v2` (384-dim, L2-normalized
     so cosine similarity == dot product). Falls back to a deterministic
-    feature-hashing embedding — keeping the 384-dim / cosine contract with
+    feature-hashing embedding: keeping the 384-dim / cosine contract with
     pgvector intact even when torch/sentence-transformers aren't installed."""
 
     DIM = EMBEDDING_DIM
@@ -262,13 +262,13 @@ class EmbeddingModel:
         self.model_name = model_name or "all-MiniLM-L6-v2"
         self._model: Any = None
         if not enabled:
-            log.info("Sentence-transformer embeddings disabled (EMBEDDINGS_ENABLED=false) — using feature-hashing fallback")
+            log.info("Sentence-transformer embeddings disabled (EMBEDDINGS_ENABLED=false): using feature-hashing fallback")
         elif _ST_AVAILABLE:
             try:
                 self._model = SentenceTransformer(self.model_name)
                 log.info("Loaded sentence-transformers model '%s'", self.model_name)
             except Exception as exc:
-                log.warning("Could not load '%s' (%s) — using hashing fallback", self.model_name, exc)
+                log.warning("Could not load '%s' (%s): using hashing fallback", self.model_name, exc)
 
     @property
     def backend(self) -> str:
@@ -290,7 +290,7 @@ class EmbeddingModel:
     def _hash_embed(self, text: str) -> np.ndarray:
         """Feature-hashing: each token votes +/-1 into one of DIM buckets
         (sign from a second hash byte), then L2-normalize. Deterministic
-        and model-free — same query text always maps to the same vector,
+        and model-free: same query text always maps to the same vector,
         which is all hybrid search needs from the embedding step."""
         vec = np.zeros(self.DIM, dtype=np.float32)
         for tok in _tokenize(text):
@@ -302,11 +302,11 @@ class EmbeddingModel:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SECTION 3 — LEXICAL SEARCH (BM25 fallback)
+# SECTION 3: LEXICAL SEARCH (BM25 fallback)
 # ─────────────────────────────────────────────────────────────────────────────
 
 class BM25:
-    """Minimal Okapi BM25 over an in-memory corpus (k1=1.5, b=0.75 — the
+    """Minimal Okapi BM25 over an in-memory corpus (k1=1.5, b=0.75: the
     conventional defaults, matching Postgres's `ts_rank_cd` ballpark).
     Used by the DuckDB fallback vector store when Postgres
     `to_tsvector`/`ts_rank_cd` isn't available."""
@@ -446,12 +446,12 @@ def _blend_recency(candidates: list[dict[str, Any]], rrf_k: int) -> list[dict[st
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SECTION 4 — VECTOR STORE (pgvector + DuckDB fallback)
+# SECTION 4: VECTOR STORE (pgvector + DuckDB fallback)
 # ─────────────────────────────────────────────────────────────────────────────
 
 @dataclass
 class Document:
-    """Unified knowledge-base row — mirrors `knowledge_base` Gold table
+    """Unified knowledge-base row: mirrors `knowledge_base` Gold table
     columns from 03_lakehouse.py."""
     id: str
     source: str
@@ -502,7 +502,7 @@ CREATE INDEX IF NOT EXISTS content_embeddings_fts_idx
 
 class VectorStore:
     """`content_embeddings` in pgvector (HNSW, cosine + Postgres BM25 via
-    `to_tsvector`/`ts_rank_cd`), or — if Postgres is unreachable — an
+    `to_tsvector`/`ts_rank_cd`), or, if Postgres is unreachable, an
     in-memory DuckDB table (`list_cosine_similarity`) plus the pure-Python
     `BM25` above. Same `hybrid_search` API either way."""
 
@@ -533,9 +533,9 @@ class VectorStore:
             with conn.cursor() as cur:
                 cur.execute(PGVECTOR_SCHEMA_SQL)
             self._pg = conn
-            log.info("pgvector connected — 'content_embeddings' ready (HNSW, cosine)")
+            log.info("pgvector connected: 'content_embeddings' ready (HNSW, cosine)")
         except Exception as exc:
-            log.warning("pgvector unavailable (%s) — vector store falls back to in-memory DuckDB", exc)
+            log.warning("pgvector unavailable (%s): vector store falls back to in-memory DuckDB", exc)
             self._pg = None
 
     @property
@@ -577,7 +577,7 @@ class VectorStore:
         return len(rows)
 
     def _upsert_duck(self, docs: list[Document], embeddings: np.ndarray) -> int:
-        self._duck.execute("DELETE FROM embeddings")  # full reindex — fine at demo scale
+        self._duck.execute("DELETE FROM embeddings")  # full reindex: fine at demo scale
         rows = [
             (d.id, d.source, d.title, d.content, d.abstract, d.url, d.author, d.tags,
              d.score, d.num_comments, d.published_at, emb.tolist())
@@ -728,10 +728,10 @@ class VectorStore:
         """Reciprocal Rank Fusion of vector similarity + BM25 lexical rank.
         RRF is robust to the very different score scales of cosine
         similarity (0..1) and BM25 (unbounded) without needing tuned
-        fusion weights — the standard approach for pgvector + Postgres FTS
+        fusion weights: the standard approach for pgvector + Postgres FTS
         hybrid setups.
 
-        If `source` is given, retrieval is restricted to that source —
+        If `source` is given, retrieval is restricted to that source,
         unless it has no matches, in which case it falls back to all
         sources so a query never returns empty.
 
@@ -762,7 +762,7 @@ class VectorStore:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SECTION 5 — RERANKING
+# SECTION 5: RERANKING
 # ─────────────────────────────────────────────────────────────────────────────
 
 class Reranker:
@@ -778,9 +778,9 @@ class Reranker:
                 self._model = CrossEncoder(self.model_name)
                 log.info("Loaded cross-encoder '%s'", self.model_name)
             except Exception as exc:
-                log.warning("Could not load cross-encoder '%s' (%s) — using lexical-overlap fallback", self.model_name, exc)
+                log.warning("Could not load cross-encoder '%s' (%s): using lexical-overlap fallback", self.model_name, exc)
         elif not enabled:
-            log.info("Cross-encoder reranker disabled (RERANKER_ENABLED=false) — using lexical-overlap fallback")
+            log.info("Cross-encoder reranker disabled (RERANKER_ENABLED=false): using lexical-overlap fallback")
 
     @property
     def backend(self) -> str:
@@ -809,7 +809,7 @@ class Reranker:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SECTION 6 — FEATURE LOOKUPS (Feast)
+# SECTION 6: FEATURE LOOKUPS (Feast)
 # ─────────────────────────────────────────────────────────────────────────────
 
 class FeatureLookup:
@@ -825,7 +825,7 @@ class FeatureLookup:
             try:
                 self._store = FeatureStore(repo_path=config.feast_repo_path)
             except Exception as exc:
-                log.warning("Feast store unavailable (%s) — computing features locally", exc)
+                log.warning("Feast store unavailable (%s): computing features locally", exc)
 
     @property
     def backend(self) -> str:
@@ -836,7 +836,7 @@ class FeatureLookup:
             try:
                 return self._annotate_feast(documents)
             except Exception as exc:
-                log.warning("Feast lookup failed (%s) — computing features locally", exc)
+                log.warning("Feast lookup failed (%s): computing features locally", exc)
         return [self._annotate_local(d) for d in documents]
 
     def _annotate_feast(self, documents: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -866,13 +866,13 @@ class FeatureLookup:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SECTION 7 — ANSWER COMPOSITION (LLM)
+# SECTION 7: ANSWER COMPOSITION (LLM)
 # ─────────────────────────────────────────────────────────────────────────────
 
 class AnswerComposer:
     """Composes the final `/search` answer from re-ranked sources. Tries
     Claude, a local Ollama model or OpenAI per `LLM_PROVIDER`, falling back
-    to a purely extractive summary — the lead sentence from each top source,
+    to a purely extractive summary; the lead sentence from each top source,
     tagged with its citation index."""
 
     # Source text is scraped from HN/arXiv/GitHub, so it is quoted as data
@@ -905,17 +905,17 @@ class AnswerComposer:
             try:
                 return self._compose_anthropic(query, sources)
             except Exception as exc:
-                log.warning("Claude generation failed (%s) — using extractive answer", exc)
+                log.warning("Claude generation failed (%s): using extractive answer", exc)
         elif self.config.llm_provider == "ollama":
             try:
                 return self._compose_ollama(query, sources)
             except Exception as exc:
-                log.warning("Ollama generation failed (%s) — using extractive answer", exc)
+                log.warning("Ollama generation failed (%s): using extractive answer", exc)
         elif self.config.llm_provider == "openai":
             try:
                 return self._compose_openai(query, sources)
             except Exception as exc:
-                log.warning("OpenAI generation failed (%s) — using extractive answer", exc)
+                log.warning("OpenAI generation failed (%s): using extractive answer", exc)
 
         return self._compose_extractive(query, sources)
 
@@ -1018,7 +1018,7 @@ class AnswerComposer:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SECTION 8 — KNOWLEDGE BASE LOADING + INDEXING
+# SECTION 8: KNOWLEDGE BASE LOADING + INDEXING
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _rows_to_documents(rel: duckdb.DuckDBPyRelation) -> list[Document]:
@@ -1037,7 +1037,7 @@ def _rows_to_documents(rel: duckdb.DuckDBPyRelation) -> list[Document]:
 
 
 def _synthetic_knowledge_base() -> list[Document]:
-    """Small built-in corpus so `/search` always has something to find —
+    """Small built-in corpus so `/search` always has something to find,
     used when neither the local Gold mirror nor S3 has `knowledge_base`
     yet (e.g. before 03_lakehouse.py has run)."""
     now = datetime.now(timezone.utc)
@@ -1058,7 +1058,7 @@ def _synthetic_knowledge_base() -> list[Document]:
          "breakdowns.",
          "aidataboon", ["rag", "evaluation", "python"], 640, 28, now - timedelta(days=5)),
         ("hn_2002", "hackernews", "Ask HN: How are you running local embeddings in production?",
-         "Curious what people use for self-hosted sentence-transformers at scale — "
+         "Curious what people use for self-hosted sentence-transformers at scale; "
          "batch size, GPU vs CPU, ONNX export, and quantization tradeoffs for "
          "all-MiniLM-L6-v2 specifically.",
          "bob", [], 96, 41, now - timedelta(hours=10)),
@@ -1078,7 +1078,7 @@ def _synthetic_knowledge_base() -> list[Document]:
 def _kb_select_sql(source: str, limit: int) -> str:
     """Selects up to `limit` rows ordered by recency, reserving a fair
     per-source slice (limit // 3) so a high-volume source (e.g. arXiv)
-    can't crowd out a lower-volume one (e.g. GitHub trending) entirely —
+    can't crowd out a lower-volume one (e.g. GitHub trending) entirely,
     which previously left source-filtered queries like "github trends"
     with nothing to return."""
     per_source = max(limit // 3, 20)
@@ -1107,7 +1107,7 @@ def load_knowledge_base(config: RAGConfig) -> list[Document]:
         return docs
 
     # 03_lakehouse.py writes a single object per table (knowledge_base/data.parquet).
-    # Use the explicit key rather than a glob — DuckDB's httpfs glob support
+    # Use the explicit key rather than a glob; DuckDB's httpfs glob support
     # probes the literal pre-wildcard prefix with a GET and 404s on R2.
     s3_path = f"s3://{config.s3_gold_bucket}/knowledge_base/data.parquet"
     try:
@@ -1135,7 +1135,7 @@ def load_knowledge_base(config: RAGConfig) -> list[Document]:
 
 class KnowledgeBaseIndexer:
     """Loads the Gold `knowledge_base`, embeds every document, and upserts
-    into the vector store — the batch embedding pipeline."""
+    into the vector store: the batch embedding pipeline."""
 
     def __init__(self, config: RAGConfig, embedder: EmbeddingModel, store: VectorStore) -> None:
         self.config = config
@@ -1164,7 +1164,7 @@ class KnowledgeBaseIndexer:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SECTION 9 — RAG PIPELINE ORCHESTRATION
+# SECTION 9: RAG PIPELINE ORCHESTRATION
 # ─────────────────────────────────────────────────────────────────────────────
 
 @dataclass
@@ -1322,7 +1322,7 @@ class RAGPipeline:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SECTION 10 — FASTAPI APP
+# SECTION 10: FASTAPI APP
 # ─────────────────────────────────────────────────────────────────────────────
 
 if _FASTAPI_AVAILABLE:
@@ -1417,14 +1417,14 @@ if _FASTAPI_AVAILABLE:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SECTION 11 — STANDALONE DEMO
+# SECTION 11: STANDALONE DEMO
 # ─────────────────────────────────────────────────────────────────────────────
 
 def main() -> None:
     pipeline = RAGPipeline()
     stats = pipeline.index()
 
-    print("\n=== AIDataBoon RAG Service — Demo ===")
+    print("\n=== AIDataBoon RAG Service: Demo ===")
     print(f"  Embedding backend : {pipeline.embedder.backend}")
     print(f"  Vector backend    : {pipeline.store.backend}")
     print(f"  Reranker backend  : {pipeline.reranker.backend}")
@@ -1464,7 +1464,7 @@ def main() -> None:
         print(f"    {k}: {v}")
 
     if not _FASTAPI_AVAILABLE:
-        print("\n  (fastapi/pydantic unavailable in this environment — API app not built;"
+        print("\n  (fastapi/pydantic unavailable in this environment, so the API app was not built;"
               " core pipeline above is unaffected)")
 
 

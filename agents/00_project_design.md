@@ -1,4 +1,4 @@
-# AIDataBoon Agents — LLMOps & Multi-Agent Infrastructure
+# AIDataBoon Agents: LLMOps & Multi-Agent Infrastructure
 ## Architecture & Design Document
 
 **Domain:** agents.aidataboon.com (subdomain of aidataboon.com)
@@ -69,7 +69,7 @@ optional pay-per-token providers (OpenAI `gpt-4o-mini`, Anthropic
                       │ (port 8000, pgvector)    │
                       └─────────────────────────┘
 
-03_eval_harness.py — standalone CLI + CI gate:
+03_eval_harness.py: standalone CLI + CI gate:
   golden_qa.jsonl -> runs Agent.chat() per question -> RAGAS-style metrics
   (faithfulness, answer_relevancy, context_precision/recall via heuristic
   fallback or real `ragas` if installed) -> writes eval_report.json,
@@ -80,16 +80,16 @@ optional pay-per-token providers (OpenAI `gpt-4o-mini`, Anthropic
 
 ## 3. Architecture Decision Records
 
-### ADR-1: Prompt Registry — Postgres table + in-memory fallback, A/B by hash bucket
+### ADR-1: Prompt Registry (Postgres table + in-memory fallback, A/B by hash bucket)
 Prompts are versioned rows in a `prompt_versions` table (same Postgres as the
 RAG API's pgvector). Each prompt `name` (e.g. `agent.planner.system`) can have
 multiple versions; `is_active` + `traffic_pct` define a canary rollout.
 `get_active(name, user_id)` deterministically buckets `user_id` via
 `sha256(f"{name}:{user_id}") % 100` so the same user always sees the same
 variant. Falls back to an in-memory dict (seeded from `DEFAULT_PROMPTS`) when
-`psycopg`/Postgres is unavailable — keeps local dev and CI dependency-free.
+`psycopg`/Postgres is unavailable: keeps local dev and CI dependency-free.
 
-### ADR-2: Observability — OTel GenAI semantic conventions + Prometheus + 4 guardrails
+### ADR-2: Observability (OTel GenAI semantic conventions + Prometheus + 4 guardrails)
 Reuses the data platform's `setup_tracing()`/`MetricsRegistry` pattern. Spans use the
 OTel GenAI semconv attribute names (`gen_ai.system`, `gen_ai.request.model`,
 `gen_ai.usage.*`, `gen_ai.agent.name`, `gen_ai.operation.name`) as plain
@@ -102,18 +102,18 @@ compose changes needed. Four guardrails run on every request:
 prompt-injection pattern matching, PII detection + redaction, output
 moderation (banned terms + max length), and a cost/budget tracker.
 
-### ADR-3: Agent Orchestration — LangGraph graph with deterministic fallback
+### ADR-3: Agent Orchestration (LangGraph graph with deterministic fallback)
 `AgentOrchestrator` builds a 4-node graph (planner → retriever → critic →
 answerer, with a critic→retriever loop up to `max_iterations`) using
 `langgraph.graph.StateGraph` when installed, and a hand-rolled
-`SimpleAgentGraph` (same node functions, plain Python loop) otherwise — so
+`SimpleAgentGraph` (same node functions, plain Python loop) otherwise, so
 the agent runs identically with or without the `langgraph` package. The
 retriever node calls the data platform RAG API over HTTP (`httpx`); planner/critic/
 answerer call `LLMClient`, which itself supports `openai`, `anthropic`,
 `ollama`, or `none` (deterministic extractive answer from retrieved docs) via
 the same `_AVAILABLE` flag pattern as the rest of the codebase.
 
-### ADR-4: Episodic memory — pgvector table of past runs, embedded for recall
+### ADR-4: Episodic memory (pgvector table of past runs, embedded for recall)
 `AgentMemory` persists every run (query, full step trace, answer, citations,
 token usage, cost, latency, user feedback) to a `agent_runs` /
 `agent_messages` table pair, embedding the query with the same
@@ -122,7 +122,7 @@ token usage, cost, latency, user feedback) to a `agent_runs` /
 similar questions as few-shot context. Falls back to an in-memory list of
 dicts when Postgres is unavailable.
 
-### ADR-5: Eval harness — golden Q&A set + RAGAS-style metrics, CI-gated
+### ADR-5: Eval harness (golden Q&A set + RAGAS-style metrics, CI-gated)
 `03_eval_harness.py` ships a small `golden_qa.jsonl` (10-15 Q&A pairs with
 expected-keyword ground truth, drawn from the AIDataBoon knowledge base). It
 runs each question through `Agent.chat()`, scores
@@ -130,7 +130,7 @@ faithfulness/answer-relevancy/context-precision/context-recall using `ragas`
 if installed, else a keyword/embedding-overlap heuristic, aggregates into
 `eval_report.json`, and exits non-zero if the mean composite score drops
 below `EVAL_MIN_SCORE` (default 0.6; CI uses 0.30, a baseline for the
-heuristic fallbacks) — wired into `.github/workflows/agents-cicd.yml` as a
+heuristic fallbacks): wired into `.github/workflows/agents-cicd.yml` as a
 regression gate on every PR.
 
 ### ADR-6: user_id threading for per-user A/B without per-request reconnects
@@ -140,7 +140,7 @@ flows through `AgentState` (TypedDict) into `prompt_provider(name, user_id)`
 and `AgentMemory.start_run(query, user_id=...)`, so prompt A/B bucketing and
 episodic memory stay per-user without recreating any client objects.
 
-### ADR-7: Cloudflare — separate Terraform root for `agents.aidataboon.com`
+### ADR-7: Cloudflare (separate Terraform root for `agents.aidataboon.com`)
 `07_cloudflare_agents.tf` is a standalone Terraform configuration (separate
 state from `data_platform/09_cloudflare_infra.tf`) that adds a
 `agents` DNS record + Cloudflare Tunnel/Worker route for the agent API,

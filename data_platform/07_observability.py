@@ -1,21 +1,21 @@
 """
-AIDataBoon — Observability: Tracing, Metrics, SLOs, Alerts, Health Checks
+AIDataBoon Observability: Tracing, Metrics, SLOs, Alerts, Health Checks
 
 Stack:
-  OpenTelemetry SDK  — tracing, exported via OTLP/gRPC to otel-collector:4317
+  OpenTelemetry SDK : tracing, exported via OTLP/gRPC to otel-collector:4317
                        (falls back to console export if the OTLP exporter
                        package isn't installed)
-  prometheus_client  — custom `aidataboon_*` application metrics, exposed in
+  prometheus_client : custom `aidataboon_*` application metrics, exposed in
                        Prometheus exposition format (hand-rolled fallback if
                        prometheus_client isn't installed)
-  Prometheus/Grafana — this module is the single source of truth for the
+  Prometheus/Grafana: this module is the single source of truth for the
                        SLO table in 00_project_design.md Section 11; it
                        renders the Prometheus scrape config + alerting
                        rules, the OTel Collector pipeline config, and the
                        Grafana datasource/dashboard provisioning + the four
                        dashboards (pipeline, RAG latency, vectors,
                        infrastructure)
-  HealthChecker      — Postgres/Redis/Kafka/MinIO/MLflow liveness probes
+  HealthChecker     : Postgres/Redis/Kafka/MinIO/MLflow liveness probes
                        over raw sockets + HTTP, so they work without
                        psycopg/redis-py/kafka-python/boto3 installed
 
@@ -49,13 +49,13 @@ import yaml
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(name)s] %(levelname)s — %(message)s",
+    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
     datefmt="%H:%M:%S",
 )
 logger = logging.getLogger("aidataboon.observability")
 
 # ---------------------------------------------------------------------------
-# Optional heavy dependencies — each degrades to a local fallback so this
+# Optional heavy dependencies: each degrades to a local fallback so this
 # module is always importable and `__main__` always runs end-to-end.
 # ---------------------------------------------------------------------------
 try:
@@ -70,7 +70,7 @@ try:
     _OTEL_AVAILABLE = True
 except ImportError:  # pragma: no cover
     _OTEL_AVAILABLE = False
-    logger.warning("opentelemetry-sdk not installed — tracing disabled")
+    logger.warning("opentelemetry-sdk not installed: tracing disabled")
 
 try:
     from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
@@ -78,7 +78,7 @@ try:
 except ImportError:  # pragma: no cover
     _OTEL_OTLP_AVAILABLE = False
     if _OTEL_AVAILABLE:
-        logger.warning("OTLP exporter not installed — tracing falls back to console export")
+        logger.warning("OTLP exporter not installed: tracing falls back to console export")
 
 try:
     from prometheus_client import (
@@ -92,11 +92,11 @@ try:
     _PROMETHEUS_AVAILABLE = True
 except ImportError:  # pragma: no cover
     _PROMETHEUS_AVAILABLE = False
-    logger.warning("prometheus_client not installed — /metrics falls back to hand-rolled exposition text")
+    logger.warning("prometheus_client not installed: /metrics falls back to hand-rolled exposition text")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SECTION 1 — CONFIG
+# SECTION 1: CONFIG
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _env_int(key: str, default: int) -> int:
@@ -144,7 +144,7 @@ class ObservabilityConfig:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SECTION 2 — OPENTELEMETRY TRACING
+# SECTION 2: OPENTELEMETRY TRACING
 # ─────────────────────────────────────────────────────────────────────────────
 
 def setup_tracing(config: ObservabilityConfig | None = None) -> "trace.Tracer | None":
@@ -154,7 +154,7 @@ def setup_tracing(config: ObservabilityConfig | None = None) -> "trace.Tracer | 
     is unavailable, so spans remain visible during local development.
 
     Returns None (and logs a warning) if opentelemetry-sdk itself is not
-    installed — callers should treat tracing as a no-op in that case.
+    installed: callers should treat tracing as a no-op in that case.
     """
     if not _OTEL_AVAILABLE:
         return None
@@ -170,7 +170,7 @@ def setup_tracing(config: ObservabilityConfig | None = None) -> "trace.Tracer | 
             provider.add_span_processor(BatchSpanProcessor(exporter))
             backend = f"otlp@{cfg.otel_exporter_endpoint}"
         except Exception as exc:  # pragma: no cover - defensive, e.g. bad endpoint config
-            logger.warning("OTLP exporter init failed (%s) — falling back to console export", exc)
+            logger.warning("OTLP exporter init failed (%s): falling back to console export", exc)
             provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))
     else:
         provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))
@@ -181,7 +181,7 @@ def setup_tracing(config: ObservabilityConfig | None = None) -> "trace.Tracer | 
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SECTION 3 — PROMETHEUS METRICS REGISTRY
+# SECTION 3: PROMETHEUS METRICS REGISTRY
 # ─────────────────────────────────────────────────────────────────────────────
 
 @dataclass(frozen=True)
@@ -194,7 +194,7 @@ class MetricSpec:
 
 
 # AIDataBoon's custom application metrics. Every PromQL `expr` in SLOS and in
-# the generated Grafana dashboards (Section 5) refers to one of these — plus
+# the generated Grafana dashboards (Section 5) refers to one of these; plus
 # `rag_search_requests_total` / `rag_documents_indexed` / `rag_health` from
 # 05_rag_service.py and Prometheus's built-in `up`.
 METRIC_SPECS: tuple[MetricSpec, ...] = (
@@ -242,7 +242,7 @@ class MetricsRegistry:
     """AIDataBoon's custom Prometheus metrics (METRIC_SPECS / SLOS).
 
     Backed by real `prometheus_client` collectors when available; otherwise
-    an in-memory store rendered as exposition-format text — the same
+    an in-memory store rendered as exposition-format text; the same
     fallback 05_rag_service.py uses for its `/metrics` endpoint. Either way,
     `.render()` returns `(body, content_type)` ready for an HTTP response.
     """
@@ -346,7 +346,7 @@ class MetricsRegistry:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SECTION 4 — SLOs AND ERROR BUDGETS
+# SECTION 4: SLOs AND ERROR BUDGETS
 # ─────────────────────────────────────────────────────────────────────────────
 
 @dataclass(frozen=True)
@@ -453,10 +453,10 @@ def evaluate_error_budget(slo: SLO, current_value: float) -> ErrorBudgetStatus:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SECTION 5 — CONFIG FILE GENERATORS (Prometheus / Grafana / OTel Collector)
+# SECTION 5: CONFIG FILE GENERATORS (Prometheus / Grafana / OTel Collector)
 # ─────────────────────────────────────────────────────────────────────────────
 
-_GENERATED_HEADER = "# Generated by 07_observability.py — do not edit by hand.\n"
+_GENERATED_HEADER = "# Generated by 07_observability.py: do not edit by hand.\n"
 
 
 def generate_prometheus_config(config: ObservabilityConfig | None = None) -> str:
@@ -464,7 +464,7 @@ def generate_prometheus_config(config: ObservabilityConfig | None = None) -> str
     (`/metrics`), and the OTel Collector's Prometheus exporter (pipeline
     metrics on :8889) and self-telemetry (:8888, enabled by the OTel
     Collector config below). Loads alerting rules from
-    07_observability/prometheus/rules/*.yml — Prometheus evaluates and
+    07_observability/prometheus/rules/*.yml: Prometheus evaluates and
     displays these in its Alerts UI even with no Alertmanager deployed;
     add an `alerting:` block here once one is."""
     doc = {
@@ -730,7 +730,7 @@ def generate_config_files(
     base_dir: Path | None = None,
 ) -> list[Path]:
     """Write the Prometheus/Grafana/OTel config files that 01_local_stack.yml
-    bind-mounts read-only under 07_observability/. Safe to re-run — each file
+    bind-mounts read-only under 07_observability/. Safe to re-run: each file
     is freshly rendered from SLOS / METRIC_SPECS, so editing those and
     re-running this keeps dashboards, alerts, and scrape configs in sync."""
     cfg = config or ObservabilityConfig()
@@ -755,7 +755,7 @@ def generate_config_files(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SECTION 6 — HEALTH CHECKS
+# SECTION 6: HEALTH CHECKS
 # ─────────────────────────────────────────────────────────────────────────────
 
 @dataclass
@@ -771,7 +771,7 @@ class HealthChecker:
 
     Uses raw sockets and HTTP rather than service-specific clients
     (psycopg, redis-py, kafka-python, boto3/minio) so it works even when
-    those optional dependencies aren't installed — the same constraint
+    those optional dependencies aren't installed: the same constraint
     05_rag_service.py and 03_lakehouse.py work under."""
 
     def __init__(self, config: ObservabilityConfig | None = None) -> None:
@@ -817,7 +817,7 @@ class HealthChecker:
     def check_kafka(self) -> ServiceHealth:
         return self._tcp_check(
             "kafka", self.config.kafka_host, self.config.kafka_port,
-            detail="tcp connect only — broker API check needs a Kafka client library",
+            detail="tcp connect only: broker API check needs a Kafka client library",
         )
 
     def check_minio(self) -> ServiceHealth:
@@ -839,13 +839,13 @@ class HealthChecker:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SECTION 7 — MAIN
+# SECTION 7: MAIN
 # ─────────────────────────────────────────────────────────────────────────────
 
 def main() -> None:
     config = ObservabilityConfig()
 
-    print("=== AIDataBoon Observability — Demo ===")
+    print("=== AIDataBoon Observability: Demo ===")
 
     # 1. Generate Prometheus/Grafana/OTel config files -----------------------
     written = generate_config_files(config)
@@ -865,7 +865,7 @@ def main() -> None:
         backend = f"otlp@{config.otel_exporter_endpoint}" if _OTEL_OTLP_AVAILABLE else "console-fallback"
         print(f"\nTracing backend: {backend} (3 spans emitted for a demo 'rag.search' trace)")
     else:
-        print("\nTracing: opentelemetry-sdk not installed — skipped")
+        print("\nTracing: skipped (opentelemetry-sdk not installed)")
 
     # 3. Metrics demo ------------------------------------------------------------
     metrics = MetricsRegistry()
@@ -884,7 +884,7 @@ def main() -> None:
 
     body, content_type = metrics.render()
     print(f"\nMetrics backend: {metrics.backend}")
-    print(f"/metrics ({content_type}) — first lines:")
+    print(f"/metrics ({content_type}): first lines:")
     for line in body.decode().splitlines()[:14]:
         print(f"  {line}")
 
@@ -912,7 +912,7 @@ def main() -> None:
         )
 
     # 5. Health checks -----------------------------------------------------------
-    print("\nHealth checks (local stack — expect 'down' if it isn't running):")
+    print("\nHealth checks (local stack: expect 'down' if it isn't running):")
     health = HealthChecker(config).run_all()
     print(f"  overall: {health['status']}")
     for name, info in health["services"].items():

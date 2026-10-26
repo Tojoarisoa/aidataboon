@@ -1,11 +1,11 @@
 # =============================================================================
-# AIDataBoon — Cloudflare Infrastructure (Primary, Cost-Optimized)
+# AIDataBoon: Cloudflare Infrastructure (Primary, Cost-Optimized)
 #
 # This is the PRIMARY production deployment path (~$0/month).
 # It pairs Cloudflare's free-tier edge platform with two external services
-# that are provisioned out-of-band (not by this file — see note below):
-#   - Render  — runs the RAG API container (05_rag_service.py)
-#   - Neon    — managed Postgres + pgvector (replaces local pgvector container)
+# that are provisioned out-of-band (not by this file: see note below):
+#   - Render : runs the RAG API container (05_rag_service.py)
+#   - Neon   : managed Postgres + pgvector (replaces local pgvector container)
 #
 # Render and Neon do not have first-class, actively-maintained Terraform
 # providers, so this configuration treats them as external dependencies and
@@ -16,14 +16,14 @@
 # For teams that need full AWS instead (existing infra, compliance, VPC
 # peering, etc.), see aws/08_terraform_aws.tf (~$40/month). It lives in its
 # own subdirectory because it's a separate Terraform root module (its own S3
-# backend, "environment"/"project_name" variables, etc.) — keeping both
+# backend, "environment"/"project_name" variables, etc.): keeping both
 # configs in this directory caused `terraform init` to fail with duplicate
 # variable/provider declarations.
 #
-# Estimated monthly cost — Cloudflare side (free plan):
+# Estimated monthly cost: Cloudflare side (free plan):
 #   R2 storage, 6 buckets, <10GB total:        $0.00  (10GB free, then $0.015/GB)
 #   R2 Class A/B operations:                   $0.00  (1M / 10M free per month)
-#   R2 egress to the internet:                 $0.00  (always free — no egress fees)
+#   R2 egress to the internet:                 $0.00  (always free: no egress fees)
 #   Cloudflare Pages (static frontend):        $0.00  (unlimited requests, free plan)
 #   Cloudflare Workers (API gateway):          $0.00  (100K requests/day free)
 #   Cloudflare Tunnel (Grafana dashboard):     $0.00  (free, no public IP needed)
@@ -140,7 +140,7 @@ variable "pages_project_name" {
 }
 
 # Render and Neon are provisioned out-of-band (Render Blueprint deploy of
-# render.yaml, Neon dashboard / neonctl) — see header comment. These
+# render.yaml, Neon dashboard / neonctl); see header comment. These
 # variables wire their already-provisioned hostnames and credentials into
 # the Cloudflare layer.
 variable "render_api_hostname" {
@@ -179,7 +179,7 @@ variable "rate_limit_requests_per_10s" {
 # cloudflare_ruleset.rate_limit_api below); the agents config no longer
 # defines its own http_ratelimit ruleset.
 variable "agents_subdomain" {
-  description = "Subdomain hosting the agent API (must match agents_subdomain in 07_cloudflare_agents.tf) — included in the shared rate-limit ruleset"
+  description = "Subdomain hosting the agent API (must match agents_subdomain in 07_cloudflare_agents.tf); included in the shared rate-limit ruleset"
   type        = string
   default     = "agents"
 }
@@ -191,7 +191,7 @@ variable "worker_script_name" {
 }
 
 # ---------------------------------------------------------------------------
-# Storage — R2 Buckets (S3-compatible, zero egress fees)
+# Storage: R2 Buckets (S3-compatible, zero egress fees)
 # ---------------------------------------------------------------------------
 
 # Mirrors the bucket layout used locally by 01_local_stack.yml's MinIO and
@@ -230,11 +230,11 @@ resource "cloudflare_r2_bucket" "buckets" {
 # cloudflare_r2_custom_domain in provider v5, a breaking major upgrade from
 # the rest of this file). Bind it manually once: R2 -> aidataboon-gold ->
 # Settings -> Custom Domains -> add "data.aidataboon.com" (Cloudflare
-# provisions the DNS record automatically — do not also define a
+# provisions the DNS record automatically; do not also define a
 # cloudflare_record for "data" below).
 
 # ---------------------------------------------------------------------------
-# Frontend — Cloudflare Pages
+# Frontend: Cloudflare Pages
 # ---------------------------------------------------------------------------
 
 # Direct-upload project (no git integration / build_config needed): the
@@ -249,7 +249,7 @@ resource "cloudflare_pages_project" "frontend" {
 }
 
 # DNS alone (cloudflare_record.root below) is not enough for Pages to serve
-# the apex domain — the hostname must also be registered as a custom domain
+# the apex domain: the hostname must also be registered as a custom domain
 # on the Pages project, or requests to it return 522.
 resource "cloudflare_pages_domain" "root" {
   account_id   = var.cloudflare_account_id
@@ -258,7 +258,7 @@ resource "cloudflare_pages_domain" "root" {
 }
 
 # ---------------------------------------------------------------------------
-# API Gateway — Cloudflare Worker (proxies api.aidataboon.com -> Render)
+# API Gateway: Cloudflare Worker (proxies api.aidataboon.com -> Render)
 # ---------------------------------------------------------------------------
 
 # Cost: 100K requests/day free, then $0.30/million. Handles CORS, auth header
@@ -271,7 +271,7 @@ resource "cloudflare_worker_script" "api_gateway" {
   module     = true
 
   content = <<-JS
-    // AIDataBoon API Gateway — proxies api.${var.domain_name}/v1/* to the
+    // AIDataBoon API Gateway: proxies api.${var.domain_name}/v1/* to the
     // Render RAG API and answers /health directly. Per-IP rate limiting
     // (10 req/s) is enforced by the "rate_limit_api" cloudflare_ruleset,
     // which runs ahead of this Worker.
@@ -339,7 +339,7 @@ resource "cloudflare_worker_route" "api_gateway" {
 }
 
 # ---------------------------------------------------------------------------
-# Dashboard — Cloudflare Tunnel (exposes local Grafana, no public IP)
+# Dashboard: Cloudflare Tunnel (exposes local Grafana, no public IP)
 # ---------------------------------------------------------------------------
 
 # Cost: free. The cloudflared daemon must be run alongside Grafana (e.g. as
@@ -386,7 +386,7 @@ resource "cloudflare_record" "root" {
 
 # api.aidataboon.com -> Render. The cloudflare_worker_route above intercepts
 # requests to this hostname at the edge, so this origin is rarely hit
-# directly — it exists so the hostname resolves and is proxied (orange
+# directly: it exists so the hostname resolves and is proxied (orange
 # cloud) for the Worker route to match against.
 resource "cloudflare_record" "api" {
   zone_id = var.cloudflare_zone_id
@@ -405,14 +405,14 @@ resource "cloudflare_record" "dashboard" {
   proxied = true
 }
 
-# data.aidataboon.com is intentionally NOT defined here — it is managed by
+# data.aidataboon.com is intentionally NOT defined here; it is managed by
 # the cloudflare_r2_custom_domain.gold_public resource above.
 
 # ---------------------------------------------------------------------------
-# Edge Rules — Cache + Rate Limiting (zone-level rulesets, no Worker cost)
+# Edge Rules: Cache + Rate Limiting (zone-level rulesets, no Worker cost)
 # ---------------------------------------------------------------------------
 
-# Cache Gold-layer data served from R2 aggressively at the edge — it's
+# Cache Gold-layer data served from R2 aggressively at the edge; it's
 # immutable per pipeline run and safe to cache for an hour.
 resource "cloudflare_ruleset" "cache_data_bucket" {
   zone_id     = var.cloudflare_zone_id
@@ -501,7 +501,7 @@ output "r2_bucket_names" {
 }
 
 output "tunnel_id" {
-  description = "Cloudflare Tunnel ID for Grafana — run `cloudflared tunnel run --token <token>` for this tunnel to bring the dashboard online"
+  description = "Cloudflare Tunnel ID for Grafana; run `cloudflared tunnel run --token <token>` for this tunnel to bring the dashboard online"
   value       = cloudflare_tunnel.grafana.id
 }
 

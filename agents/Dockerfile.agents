@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # =============================================================================
-# AIDataBoon Agent API — container image for 06_agent_api.py
+# AIDataBoon Agent API: container image for 06_agent_api.py
 #
 # Build context is agents/ (this directory):
 #   docker compose -f 01_agents_stack.yml build agent-api
@@ -13,7 +13,7 @@
 # =============================================================================
 
 # ---------------------------------------------------------------------------
-# Stage 1: builder — install Python deps into a venv
+# Stage 1 (builder): install Python deps into a venv
 # ---------------------------------------------------------------------------
 ARG PYTHON_VERSION=3.11
 FROM python:${PYTHON_VERSION}-slim AS builder
@@ -29,7 +29,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements-agents.txt
 
 # ---------------------------------------------------------------------------
-# Stage 2: runtime — slim image, non-root user, curl for healthchecks
+# Stage 2 (runtime): slim image, non-root user, curl for healthchecks
 # ---------------------------------------------------------------------------
 ARG PYTHON_VERSION=3.11
 FROM python:${PYTHON_VERSION}-slim AS runtime
@@ -60,5 +60,5 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=60s --retries=5 \
     CMD curl -f http://localhost:8100/health || exit 1
 
 # uvicorn's `module:attr` CLI form requires a valid dotted module name, which
-# "06_agent_api" is not — load the app object directly instead.
+# "06_agent_api" is not: load the app object directly instead.
 CMD ["python", "-c", "import importlib.util, os, sys, uvicorn\nspec = importlib.util.spec_from_file_location('agent_api', '06_agent_api.py')\nmod = importlib.util.module_from_spec(spec)\nsys.modules['agent_api'] = mod\nspec.loader.exec_module(mod)\nuvicorn.run(mod.app, host='0.0.0.0', port=int(os.environ.get('PORT', '8100')))"]

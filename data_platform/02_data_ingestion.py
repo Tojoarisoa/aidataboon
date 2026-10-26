@@ -1,10 +1,10 @@
 """
-AIDataBoon — Data Ingestion Pipeline
+AIDataBoon: Data Ingestion Pipeline
 
 Three Airflow DAGs:
-1. hn_batch_ingestion     — Hacker News top stories (runs every 30 min)
-2. arxiv_batch_ingestion  — arXiv AI/ML papers (runs daily at 6am)
-3. github_trending_ingest — GitHub trending repos (runs daily at 8am)
+1. hn_batch_ingestion    : Hacker News top stories (runs every 30 min)
+2. arxiv_batch_ingestion : arXiv AI/ML papers (runs daily at 6am)
+3. github_trending_ingest: GitHub trending repos (runs daily at 8am)
 
 Storage: MinIO/S3-compatible (s3://aidataboon-bronze/)
 Quality: Great Expectations inline checks
@@ -32,7 +32,7 @@ log = logging.getLogger("aidataboon.ingestion")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SECTION 1 — CONFIGURATION
+# SECTION 1: CONFIGURATION
 # ─────────────────────────────────────────────────────────────────────────────
 
 @dataclass
@@ -71,7 +71,7 @@ class QualityConfig:
 # Default configs ──────────────────────────────────────────────────────────────
 
 HN_SOURCE_CONFIG = DataSourceConfig(
-    # search_by_date (not search) — plain "search" ranks by relevance/points
+    # search_by_date (not search): plain "search" ranks by relevance/points
     # and surfaces ancient all-time classics, which fail the freshness gate.
     api_url="https://hn.algolia.com/api/v1/search_by_date",
     bucket="aidataboon-bronze",
@@ -111,7 +111,7 @@ STORAGE_CONFIG = StorageConfig(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SECTION 2 — STORAGE CLIENT
+# SECTION 2: STORAGE CLIENT
 # ─────────────────────────────────────────────────────────────────────────────
 
 class S3StorageClient:
@@ -134,7 +134,7 @@ class S3StorageClient:
         if config.endpoint_url:
             kwargs["endpoint_url"] = config.endpoint_url
         # Cloudflare R2 doesn't support virtual-hosted-style addressing
-        # (bucket.endpoint) — boto3 defaults to it for non-AWS endpoints and
+        # (bucket.endpoint): boto3 defaults to it for non-AWS endpoints and
         # R2 responds with a misleading NoSuchKey error. Force path-style
         # (endpoint/bucket), matching the DuckDB URL_STYLE 'path' secret in
         # 03_lakehouse.py / 05_rag_service.py.
@@ -219,7 +219,7 @@ class S3StorageClient:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SECTION 3 — DATA QUALITY
+# SECTION 3: DATA QUALITY
 # ─────────────────────────────────────────────────────────────────────────────
 
 @dataclass
@@ -241,7 +241,7 @@ class QualityResult:
 class DataQualityChecker:
     """
     Inline Great-Expectations-style quality checks backed by pure Python /
-    DuckDB — no GE library dependency for portability in serverless envs.
+    DuckDB: no GE library dependency for portability in serverless envs.
     """
 
     def __init__(self, config: QualityConfig) -> None:
@@ -368,7 +368,7 @@ class DataQualityChecker:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SECTION 4 — HN INGESTION DAG
+# SECTION 4: HN INGESTION DAG
 # ─────────────────────────────────────────────────────────────────────────────
 
 # Guard: only import Airflow when the module is loaded in an Airflow environment.
@@ -399,8 +399,9 @@ _HN_DEFAULT_ARGS = {
     "retry_exponential_backoff": True,
     "max_retry_delay": timedelta(minutes=30),
     "execution_timeout": timedelta(minutes=15),
-    "email_on_failure": True,
-    "email": ["alerts@aidataboon.ai"],
+    # Failure emails only when an address is configured (ALERT_EMAIL).
+    "email_on_failure": bool(os.environ.get("ALERT_EMAIL")),
+    "email": [os.environ.get("ALERT_EMAIL", "alerts@example.com")],
 }
 
 _HN_EXPECTED_SCHEMA: dict[str, type] = {
@@ -461,7 +462,7 @@ def hn_batch_ingestion() -> None:
 
         Best-effort: uses a short per-request timeout and bails out after a
         few consecutive failures (the items endpoint is either reachable or
-        it isn't — no point burning the full per-item timeout 100 times)."""
+        it isn't: no point burning the full per-item timeout 100 times)."""
         base = "https://hn.algolia.com/api/v1/items"
         enriched: list[dict] = []
         consecutive_failures = 0
@@ -475,7 +476,7 @@ def hn_batch_ingestion() -> None:
                 log.warning("Could not fetch HN story detail", extra={"id": story_id, "error": str(exc)})
                 consecutive_failures += 1
                 if consecutive_failures >= 3:
-                    log.warning("HN items endpoint unreachable — aborting enrichment early")
+                    log.warning("HN items endpoint unreachable: aborting enrichment early")
                     break
         return enriched
 
@@ -576,15 +577,15 @@ def hn_batch_ingestion() -> None:
     # In real Airflow the downstream tasks receive XCom values automatically
     detailed = fetch_story_details(story_ids)
     if not detailed and raw_stories:
-        # /items/{id} enrichment is best-effort — the /search response already
+        # /items/{id} enrichment is best-effort: the /search response already
         # carries title, url, points, author, etc., so fall back to it rather
         # than dropping the whole batch if the items endpoint is unreachable.
-        log.warning("HN item enrichment returned nothing — using /search results as-is")
+        log.warning("HN item enrichment returned nothing; using /search results as-is")
         detailed = raw_stories
     quality_result = validate_quality(detailed)
     bronze_uri = write_to_bronze(detailed, quality_result)
     emit_quality_metrics(quality_result)
-    # Silence "unused variable" lints — these create the task-dependency graph
+    # Silence "unused variable" lints: these create the task-dependency graph
     _ = bronze_uri
 
 
@@ -596,7 +597,7 @@ except Exception as exc:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SECTION 5 — arXiv INGESTION DAG
+# SECTION 5: arXiv INGESTION DAG
 # ─────────────────────────────────────────────────────────────────────────────
 
 _ARXIV_NAMESPACES = {
@@ -747,7 +748,7 @@ def arxiv_batch_ingestion() -> None:
                 "year": now.strftime("%Y"),
                 "month": now.strftime("%m"),
                 "day": now.strftime("%d"),
-                "hour": "00",  # daily ingestion — fix hour to 00 for idempotency
+                "hour": "00",  # daily ingestion: fix hour to 00 for idempotency
             },
             filename=f"arxiv_{batch_id}.ndjson",
         )
@@ -769,7 +770,7 @@ except Exception as exc:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SECTION 6 — GITHUB TRENDING DAG
+# SECTION 6: GITHUB TRENDING DAG
 # ─────────────────────────────────────────────────────────────────────────────
 
 _GITHUB_DEFAULT_ARGS = {**_HN_DEFAULT_ARGS, "execution_timeout": timedelta(minutes=20)}
@@ -937,7 +938,7 @@ except Exception as exc:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SECTION 7 — CDC CONFIGURATION
+# SECTION 7: CDC CONFIGURATION
 # ─────────────────────────────────────────────────────────────────────────────
 
 @dataclass
@@ -1068,7 +1069,7 @@ def post_connector_to_kafka_connect(
     already_exists = check_resp.status_code == 200
 
     if already_exists and update_if_exists:
-        # PUT /connectors/{name}/config — update only the config, keep status/offsets
+        # PUT /connectors/{name}/config: update only the config, keep status/offsets
         config_only = connector_payload["config"]
         resp = requests.put(
             f"{base}/connectors/{name}/config",
@@ -1077,7 +1078,7 @@ def post_connector_to_kafka_connect(
             headers={"Content-Type": "application/json"},
         )
     else:
-        # POST /connectors — create new connector
+        # POST /connectors: create new connector
         resp = requests.post(
             f"{base}/connectors",
             json=connector_payload,
@@ -1139,7 +1140,7 @@ def setup_postgres_for_cdc(db_config: PostgresDBConfig) -> list[str]:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SECTION 8 — STANDALONE DEMO (no Airflow required)
+# SECTION 8: STANDALONE DEMO (no Airflow required)
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _demo_hn_fetch() -> list[dict]:
@@ -1182,14 +1183,14 @@ def _demo_arxiv_fetch() -> list[dict]:
 def main() -> None:
     logging.basicConfig(
         level=logging.INFO,
-        format="%(asctime)s %(levelname)-8s %(name)s — %(message)s",
+        format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
     )
     print("=" * 64)
-    print("AIDataBoon — Data Ingestion Demo (standalone, no Airflow)")
+    print("AIDataBoon: Data Ingestion Demo (standalone, no Airflow)")
     print("=" * 64)
 
     # ── HN ────────────────────────────────────────────────────────────────────
-    print("\n[1/3] Hacker News — top stories")
+    print("\n[1/3] Hacker News: top stories")
     try:
         stories = _demo_hn_fetch()
         checker = DataQualityChecker(config=_HN_QUALITY_CONFIG)
@@ -1210,7 +1211,7 @@ def main() -> None:
         print(f"  ERROR: {exc}")
 
     # ── arXiv ─────────────────────────────────────────────────────────────────
-    print("\n[2/3] arXiv — recent cs.AI papers")
+    print("\n[2/3] arXiv: recent cs.AI papers")
     try:
         papers = _demo_arxiv_fetch()
         print(f"  Fetched  : {len(papers)} papers")

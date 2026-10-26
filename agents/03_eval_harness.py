@@ -5,7 +5,7 @@ Implements ADR-5 (00_project_design.md): runs every question in
 golden_qa.jsonl through Agent.chat() (04_agent_orchestration.py), scores
 each run with RAGAS-style metrics (faithfulness, answer relevancy, context
 precision/recall), and writes eval_report.json. Exits non-zero if the mean
-composite score drops below EVAL_MIN_SCORE — wired into
+composite score drops below EVAL_MIN_SCORE; wired into
 .github/workflows/agents-cicd.yml as a CI regression gate.
 
 Uses `ragas` if installed; otherwise a dependency-free heuristic based on
@@ -34,7 +34,7 @@ import numpy as np
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(name)s] %(levelname)s — %(message)s",
+    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
     datefmt="%H:%M:%S",
 )
 log = logging.getLogger("aidataboon.eval")
@@ -45,7 +45,7 @@ try:
     _RAGAS_AVAILABLE = True
 except ImportError:
     _RAGAS_AVAILABLE = False
-    log.warning("ragas not installed — using heuristic eval metrics")
+    log.warning("ragas not installed: using heuristic eval metrics")
 
 _HERE = Path(__file__).resolve().parent
 
@@ -118,7 +118,7 @@ def context_precision(expected_keywords: list[str], docs: list[dict[str, Any]]) 
 
 def faithfulness(answer: str, docs: list[dict[str, Any]]) -> float:
     """Fraction of the answer's content words that are grounded in the
-    retrieved documents — penalizes hallucinated claims. The deterministic
+    retrieved documents: penalizes hallucinated claims. The deterministic
     "no documents found" answer is considered fully faithful (it makes no
     unsupported claims)."""
     if _NO_DOCS_MARKER in answer.lower():

@@ -25,7 +25,7 @@ uvicorn[standard]>=0.29,<1.0
 
 # Embeddings + cross-encoder reranking (Day 27 core capability).
 # torch is installed separately (CPU-only wheel) by Dockerfile.rag before
-# this file is processed, so it is intentionally not listed here — pip
+# this file is processed, so it is intentionally not listed here; pip
 # will see the already-installed torch satisfies sentence-transformers'
 # requirement and will not pull in the much larger default CUDA build.
 sentence-transformers>=2.7,<3.0
