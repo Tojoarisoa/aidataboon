@@ -932,6 +932,20 @@ class AnswerComposer:
             f"Sources:\n{context}\n\nQuestion: {query}\nAnswer:"
         )
 
+    @staticmethod
+    def _describe_source(source: dict[str, Any]) -> str:
+        """Where a source comes from and what its date means, for the model.
+        Every GitHub row comes from GitHub's trending list, and its date is
+        the repo's creation date, not when it trended."""
+        published = _coerce_datetime(source.get("published_at"))
+        day = published.date().isoformat() if published else None
+        kind = source.get("source")
+        if kind == "github":
+            stars = int(source.get("score") or 0)
+            return f"trending on GitHub, {stars:,} stars" + (f", repo created {day}" if day else "")
+        name = {"hackernews": "Hacker News", "arxiv": "arXiv"}.get(kind, kind or "unknown source")
+        return f"{name}, published {day}" if day else name
+
     def _compose_anthropic(self, query: str, sources: list[dict[str, Any]]) -> str:
         if not _ANTHROPIC_AVAILABLE:
             raise RuntimeError("the anthropic package is not installed")
@@ -940,8 +954,7 @@ class AnswerComposer:
             # compose() falls back to the extractive answer.
             self._anthropic = anthropic.Anthropic(timeout=25.0, max_retries=1)
         context = "\n\n".join(
-            f"[{i + 1}] {s.get('title', '')} ({s.get('source', '')}, "
-            f"{_coerce_datetime(s.get('published_at')) or 'undated'})\n"
+            f"[{i + 1}] {s.get('title', '')} ({self._describe_source(s)})\n"
             f"{(s.get('content') or s.get('abstract') or '')[:1500]}"
             for i, s in enumerate(sources)
         )
