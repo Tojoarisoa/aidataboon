@@ -1,21 +1,33 @@
-# Manually-triggered data engineering run for AIDataBoon.
+# Daily data engineering run for AIDataBoon (also runnable by hand).
 #
 # Runs on a GitHub-hosted runner so it has unrestricted access to
 # hn.algolia.com, export.arxiv.org and api.github.com (some local
 # networks block/throttle these), then writes Bronze -> Silver -> Gold
 # straight to Cloudflare R2 via 02_data_ingestion.py and 03_lakehouse.py.
+# Finally it redeploys the RAG API, which re-indexes Gold on startup, so
+# new items become searchable.
 #
 # One-time setup: add these as repo secrets (Settings -> Secrets and
-# variables -> Actions) using your Cloudflare R2 API Token:
-#   S3_ENDPOINT_URL  - https://<account_id>.r2.cloudflarestorage.com
-#   S3_ACCESS_KEY    - R2 token Access Key ID
-#   S3_SECRET_KEY    - R2 token Secret Access Key
-#
-# Then run this workflow from the Actions tab (workflow_dispatch).
+# variables -> Actions):
+#   S3_ENDPOINT_URL         - https://<account_id>.r2.cloudflarestorage.com
+#   S3_ACCESS_KEY           - R2 token Access Key ID
+#   S3_SECRET_KEY           - R2 token Secret Access Key
+#                             (Object Read & Write on aidataboon-bronze,
+#                             aidataboon-bronze-delta, aidataboon-silver,
+#                             aidataboon-gold)
+#   RENDER_DEPLOY_HOOK_API  - deploy hook URL of the aidataboon-api service
+#                             (optional; without it, new data is only
+#                             indexed on the API's next deploy)
 name: Data ingestion (R2)
 
 on:
+  schedule:
+    - cron: "17 5 * * *" # daily, 05:17 UTC
   workflow_dispatch: {}
+
+concurrency:
+  group: ingest
+  cancel-in-progress: false
 
 jobs:
   ingest:
@@ -49,3 +61,14 @@ jobs:
           S3_SILVER_BUCKET: aidataboon-silver
           S3_GOLD_BUCKET: aidataboon-gold
         run: uv run python data_platform/03_lakehouse.py
+
+      - name: Re-index the RAG API (redeploy on Render)
+        env:
+          DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_API }}
+        run: |
+          if [ -z "$DEPLOY_HOOK" ]; then
+            echo "::warning::RENDER_DEPLOY_HOOK_API is not set; new data will be indexed on the API's next deploy."
+            exit 0
+          fi
+          curl -fsS -X POST "$DEPLOY_HOOK" -o /dev/null
+          echo "Triggered a redeploy of aidataboon-api."
