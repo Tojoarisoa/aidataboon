@@ -580,36 +580,50 @@ class VectorStore:
 
     # -- Retrieval ------------------------------------------------------------------
 
-    # `since` restricts every search to documents published at or after it.
+    # `since` restricts every search to documents published at or after it;
+    # `source` restricts it to one source. Both are applied in the query
+    # itself, so they never starve the candidate pool.
 
     def vector_search(
-        self, query_embedding: np.ndarray, limit: int, since: datetime | None = None
+        self,
+        query_embedding: np.ndarray,
+        limit: int,
+        since: datetime | None = None,
+        source: str | None = None,
     ) -> list[dict[str, Any]]:
         if self._pg is not None:
-            return self._vector_search_pg(query_embedding, limit, since)
-        return self._vector_search_duck(query_embedding, limit, since)
+            return self._vector_search_pg(query_embedding, limit, since, source)
+        return self._vector_search_duck(query_embedding, limit, since, source)
 
     def _vector_search_pg(
-        self, query_embedding: np.ndarray, limit: int, since: datetime | None
+        self, query_embedding: np.ndarray, limit: int, since: datetime | None, source: str | None
     ) -> list[dict[str, Any]]:
         emb_literal = "[" + ",".join(f"{x:.6f}" for x in query_embedding) + "]"
-        with self._pg.cursor(row_factory=dict_row) as cur:
+        # The HNSW index returns only ef_search (default 40) neighbours before
+        # the WHERE clause runs, so a filter could silently drop matches.
+        # Iterative scans (pgvector 0.8+) keep scanning until LIMIT rows pass
+        # it. SET LOCAL inside a transaction because the Neon pooler does not
+        # keep session settings between transactions.
+        with self._pg.transaction(), self._pg.cursor(row_factory=dict_row) as cur:
+            if since is not None or source is not None:
+                cur.execute("SET LOCAL hnsw.iterative_scan = strict_order")
             cur.execute(
                 """
                 SELECT id, source, title, content, abstract, url, author, tags,
                        score, num_comments, published_at,
                        1 - (embedding <=> %s::vector) AS vector_score
                 FROM content_embeddings
-                WHERE %s::timestamptz IS NULL OR published_at >= %s::timestamptz
+                WHERE (%s::timestamptz IS NULL OR published_at >= %s::timestamptz)
+                  AND (%s::text IS NULL OR source = %s::text)
                 ORDER BY embedding <=> %s::vector
                 LIMIT %s
                 """,
-                (emb_literal, since, since, emb_literal, limit),
+                (emb_literal, since, since, source, source, emb_literal, limit),
             )
             return list(cur.fetchall())
 
     def _vector_search_duck(
-        self, query_embedding: np.ndarray, limit: int, since: datetime | None
+        self, query_embedding: np.ndarray, limit: int, since: datetime | None, source: str | None
     ) -> list[dict[str, Any]]:
         # The DuckDB column is a naive UTC TIMESTAMP.
         naive_since = since.astimezone(timezone.utc).replace(tzinfo=None) if since else None
@@ -617,21 +631,26 @@ class VectorStore:
             """
             SELECT * EXCLUDE (embedding), list_cosine_similarity(embedding, ?) AS vector_score
             FROM embeddings
-            WHERE CAST(? AS TIMESTAMP) IS NULL OR published_at >= CAST(? AS TIMESTAMP)
+            WHERE (CAST(? AS TIMESTAMP) IS NULL OR published_at >= CAST(? AS TIMESTAMP))
+              AND (CAST(? AS VARCHAR) IS NULL OR source = CAST(? AS VARCHAR))
             ORDER BY vector_score DESC
             LIMIT ?
             """,
-            [query_embedding.tolist(), naive_since, naive_since, limit],
+            [query_embedding.tolist(), naive_since, naive_since, source, source, limit],
         )
         cols = [d[0] for d in res.description]
         return [dict(zip(cols, row)) for row in res.fetchall()]
 
-    def bm25_search(self, query_text: str, limit: int, since: datetime | None = None) -> list[dict[str, Any]]:
+    def bm25_search(
+        self, query_text: str, limit: int, since: datetime | None = None, source: str | None = None
+    ) -> list[dict[str, Any]]:
         if self._pg is not None:
-            return self._bm25_search_pg(query_text, limit, since)
-        return self._bm25_search_duck(query_text, limit, since)
+            return self._bm25_search_pg(query_text, limit, since, source)
+        return self._bm25_search_duck(query_text, limit, since, source)
 
-    def _bm25_search_pg(self, query_text: str, limit: int, since: datetime | None) -> list[dict[str, Any]]:
+    def _bm25_search_pg(
+        self, query_text: str, limit: int, since: datetime | None, source: str | None
+    ) -> list[dict[str, Any]]:
         with self._pg.cursor(row_factory=dict_row) as cur:
             cur.execute(
                 """
@@ -643,20 +662,26 @@ class VectorStore:
                 WHERE to_tsvector('english', title || ' ' || content)
                       @@ plainto_tsquery('english', %s)
                   AND (%s::timestamptz IS NULL OR published_at >= %s::timestamptz)
+                  AND (%s::text IS NULL OR source = %s::text)
                 ORDER BY bm25_score DESC
                 LIMIT %s
                 """,
-                (query_text, query_text, since, since, limit),
+                (query_text, query_text, since, since, source, source, limit),
             )
             return list(cur.fetchall())
 
-    def _bm25_search_duck(self, query_text: str, limit: int, since: datetime | None) -> list[dict[str, Any]]:
+    def _bm25_search_duck(
+        self, query_text: str, limit: int, since: datetime | None, source: str | None
+    ) -> list[dict[str, Any]]:
         if self._bm25 is None or not self._bm25_ids:
             return []
         results = []
-        # Score the whole corpus when filtering so the cutoff can't starve the top-`limit`.
-        for idx, bm25_score in self._bm25.search(query_text, len(self._bm25_ids) if since else limit):
+        # Score the whole corpus when filtering so the filters can't starve the top-`limit`.
+        filtering = since is not None or source is not None
+        for idx, bm25_score in self._bm25.search(query_text, len(self._bm25_ids) if filtering else limit):
             doc = self._docs[self._bm25_ids[idx]]
+            if source and doc.source != source:
+                continue
             published = _coerce_datetime(doc.published_at)
             if since and (published is None or published < since):
                 continue
@@ -666,6 +691,19 @@ class VectorStore:
             if len(results) >= limit:
                 break
         return results
+
+    def _fuse(self, vec_hits: list[dict[str, Any]], bm25_hits: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        fused: dict[str, dict[str, Any]] = {}
+        rrf_k = self.config.rrf_k
+        for rank, row in enumerate(vec_hits):
+            entry = fused.setdefault(row["id"], {**row, "rrf_score": 0.0})
+            entry["rrf_score"] += 1.0 / (rrf_k + rank + 1)
+            entry["vector_score"] = row.get("vector_score")
+        for rank, row in enumerate(bm25_hits):
+            entry = fused.setdefault(row["id"], {**row, "rrf_score": 0.0})
+            entry["rrf_score"] += 1.0 / (rrf_k + rank + 1)
+            entry["bm25_score"] = row.get("bm25_score")
+        return sorted(fused.values(), key=lambda r: r["rrf_score"], reverse=True)
 
     def hybrid_search(
         self,
@@ -681,36 +719,22 @@ class VectorStore:
         fusion weights — the standard approach for pgvector + Postgres FTS
         hybrid setups.
 
-        If `source` is given, retrieval fetches a wider candidate pool and
-        restricts the ranked results to that source — unless none match,
-        in which case it falls back to the mixed-source ranking so a query
-        never returns empty.
+        If `source` is given, retrieval is restricted to that source —
+        unless it has no matches, in which case it falls back to all
+        sources so a query never returns empty.
 
         `since` is a hard cutoff with no fallback: a query for "this week"
         returns nothing rather than older items when the window is empty."""
         retrieve_n = max(limit, self.config.top_k_retrieve)
-        fetch_n = retrieve_n * 3 if source else retrieve_n
-        vec_hits = self.vector_search(query_embedding, limit=fetch_n, since=since)
-        bm25_hits = self.bm25_search(query_text, limit=fetch_n, since=since)
-
-        fused: dict[str, dict[str, Any]] = {}
-        rrf_k = self.config.rrf_k
-        for rank, row in enumerate(vec_hits):
-            entry = fused.setdefault(row["id"], {**row, "rrf_score": 0.0})
-            entry["rrf_score"] += 1.0 / (rrf_k + rank + 1)
-            entry["vector_score"] = row.get("vector_score")
-        for rank, row in enumerate(bm25_hits):
-            entry = fused.setdefault(row["id"], {**row, "rrf_score": 0.0})
-            entry["rrf_score"] += 1.0 / (rrf_k + rank + 1)
-            entry["bm25_score"] = row.get("bm25_score")
-
-        ranked = sorted(fused.values(), key=lambda r: r["rrf_score"], reverse=True)
-
-        if source:
-            filtered = [r for r in ranked if r.get("source") == source]
-            if filtered:
-                return filtered[:retrieve_n]
-
+        ranked = self._fuse(
+            self.vector_search(query_embedding, limit=retrieve_n, since=since, source=source),
+            self.bm25_search(query_text, limit=retrieve_n, since=since, source=source),
+        )
+        if source and not ranked:
+            ranked = self._fuse(
+                self.vector_search(query_embedding, limit=retrieve_n, since=since),
+                self.bm25_search(query_text, limit=retrieve_n, since=since),
+            )
         return ranked[:retrieve_n]
 
     def health(self) -> dict[str, Any]:
