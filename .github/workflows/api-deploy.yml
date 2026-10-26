@@ -1,0 +1,90 @@
+# =============================================================================
+# AIDataBoon: RAG API deploy
+#
+# Ships aidataboon-api when a file that goes into its image changes on main
+# (Dockerfile.rag only copies requirements-rag.txt and 05_rag_service.py).
+# Render's own auto-deploy is off for this service, so this workflow and the
+# daily ingestion run are what trigger its deploys.
+#
+# smoke-test - builds Dockerfile.rag and checks the container serves /health
+#              and /search on its synthetic knowledge base
+# deploy     - calls the RENDER_DEPLOY_HOOK_API deploy hook
+# =============================================================================
+
+name: AIDataBoon API deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "data_platform/Dockerfile.rag"
+      - "data_platform/requirements-rag.txt"
+      - "data_platform/05_rag_service.py"
+      - ".github/workflows/api-deploy.yml"
+  workflow_dispatch: {}
+
+jobs:
+  smoke-test:
+    name: Smoke-test the API image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build image
+        run: docker build -f data_platform/Dockerfile.rag -t aidataboon-api:ci data_platform
+
+      - name: Run container on the synthetic knowledge base
+        run: |
+          # Unreachable database/storage on purpose: forces the in-memory
+          # store and the built-in synthetic knowledge base.
+          docker run -d --name api -p 8000:8000 \
+            -e PORT=8000 -e WORKERS=1 -e LLM_PROVIDER=none \
+            -e EMBEDDINGS_ENABLED=false -e RERANKER_ENABLED=false \
+            -e DATABASE_URL=postgresql://none@127.0.0.1:1/none \
+            -e LOCAL_GOLD_DIR=/nonexistent -e S3_ENDPOINT_URL=http://127.0.0.1:1 \
+            aidataboon-api:ci
+          for _ in $(seq 1 90); do
+            curl -fsS http://127.0.0.1:8000/health && break
+            sleep 1
+          done
+
+      - name: Check /health and /search
+        run: |
+          curl -fsS http://127.0.0.1:8000/health | python3 -c '
+          import json, sys
+          d = json.load(sys.stdin)
+          assert d["status"] == "ok" and d["documents_indexed"] > 0, d
+          '
+          curl -fsS -X POST http://127.0.0.1:8000/search \
+            -H "Content-Type: application/json" \
+            -d '{"query": "vector search this week", "limit": 3}' | python3 -c '
+          import json, sys
+          d = json.load(sys.stdin)
+          assert d["sources"], d
+          assert d["time_window"]["label"] == "past 7 days", d
+          print("search ok:", len(d["sources"]), "results")
+          '
+
+      - name: Container logs
+        if: always()
+        run: docker logs api || true
+
+  deploy:
+    name: Deploy aidataboon-api (Render)
+    runs-on: ubuntu-latest
+    needs: smoke-test
+    if: github.ref == 'refs/heads/main'
+    concurrency:
+      group: deploy-api
+      cancel-in-progress: false
+    steps:
+      - name: Trigger Render deploy hook
+        env:
+          DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_API }}
+        run: |
+          if [ -z "$DEPLOY_HOOK" ]; then
+            echo "::error::RENDER_DEPLOY_HOOK_API is not set"
+            exit 1
+          fi
+          curl -fsS -X POST "$DEPLOY_HOOK" -o /dev/null
+          echo "Triggered a deploy of aidataboon-api."

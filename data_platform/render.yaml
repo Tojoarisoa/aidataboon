@@ -9,8 +9,11 @@
 #   3. Set the DATABASE_URL secret (Neon connection string) in the
 #      service's Environment tab — it is intentionally not stored here
 #      (sync: false).
-#   4. Render builds Dockerfile.rag and deploys automatically on every
-#      push to main. No credit card required for the free plan.
+#   4. .github/workflows/api-deploy.yml smoke-tests Dockerfile.rag and
+#      deploys through the service's deploy hook (RENDER_DEPLOY_HOOK_API
+#      secret) when its files change on main; the daily ingestion run also
+#      redeploys it. Render's own auto-deploy is off.
+#      No credit card required for the free plan.
 #
 # Free plan: 512MB RAM, shared CPU, spins down after 15 min idle (cold
 # start ~30-50s on the next request — acceptable for a portfolio demo and
@@ -29,6 +32,7 @@ services:
     plan: free
     region: oregon
     healthCheckPath: /health
+    autoDeployTrigger: "off" # deployed by .github/workflows/api-deploy.yml and ingest.yml
     envVars:
       - key: PORT
         value: "8000"

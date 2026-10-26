@@ -26,7 +26,7 @@ docker compose -f agents/01_agents_stack.yml up -d
 uv run python agents/03_eval_harness.py
 ```
 
-Pipelines can also run in CI: the `Data ingestion (R2)` workflow (`.github/workflows/ingest.yml`) needs the `S3_ENDPOINT_URL`, `S3_ACCESS_KEY` and `S3_SECRET_KEY` repository secrets. The agents CI/CD workflow (`.github/workflows/agents-cicd.yml`) lints, type-checks and eval-gates every change to `agents/`; Render deploys the agent API only after it passes.
+Pipelines can also run in CI: the `Data ingestion (R2)` workflow (`.github/workflows/ingest.yml`) needs the `S3_ENDPOINT_URL`, `S3_ACCESS_KEY` and `S3_SECRET_KEY` repository secrets. The agents CI/CD workflow (`.github/workflows/agents-cicd.yml`) lints, type-checks and eval-gates every change to `agents/`, then deploys the agent API through its Render deploy hook. `.github/workflows/api-deploy.yml` smoke-tests and deploys the RAG API when its image files change. Render's own auto-deploy is off for both services; the deploy hooks come from the `RENDER_DEPLOY_HOOK_AGENTS` and `RENDER_DEPLOY_HOOK_API` secrets.
 
 ## Deploy
 

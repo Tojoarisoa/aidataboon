@@ -176,4 +176,4 @@ container, no managed compute spend).
 | `06_agent_api.py` | FastAPI agent API (integration layer) |
 | `Dockerfile.agents` / `requirements-agents.txt` / `.dockerignore` | Container image for `agent-api` |
 | `07_cloudflare_agents.tf` | DNS/Tunnel for `agents.aidataboon.com` |
-| `../.github/workflows/agents-cicd.yml` | GitHub Actions: lint, typecheck, eval gate, image build (Render deploys after checks pass) |
+| `../.github/workflows/agents-cicd.yml` | GitHub Actions: lint, typecheck, eval gate, image build, deploy via Render deploy hook |

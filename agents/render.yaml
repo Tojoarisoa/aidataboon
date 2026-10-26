@@ -7,8 +7,9 @@
 #      and creates the service below.
 #   2. Set the DATABASE_URL secret (same Neon project as the RAG API, or a
 #      separate one) in the service's Environment tab.
-#   3. Render builds Dockerfile.agents and deploys each push to main once
-#      the agents CI workflow (.github/workflows/agents-cicd.yml) passes.
+#   3. The agents CI workflow (.github/workflows/agents-cicd.yml) deploys
+#      each push to main through the service's deploy hook once CI passes
+#      (RENDER_DEPLOY_HOOK_AGENTS secret). Render's own auto-deploy is off.
 #      No credit card required for the free plan.
 #
 # Free plan: 512MB RAM, shared CPU, spins down after 15 min idle (cold
@@ -26,7 +27,7 @@ services:
     plan: free
     region: oregon
     healthCheckPath: /health
-    autoDeployTrigger: checksPass # deploy only after .github/workflows/agents-cicd.yml passes
+    autoDeployTrigger: "off" # deployed by .github/workflows/agents-cicd.yml after CI passes
     envVars:
       - key: PORT
         value: "8100"
