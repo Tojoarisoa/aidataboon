@@ -56,3 +56,7 @@ Every module also runs on its own with built-in fallbacks (synthetic data, in-me
 - **Database:** Neon Postgres with pgvector, set as `DATABASE_URL` on each service.
 - **Frontend:** Cloudflare Pages, deployed with `npx wrangler pages deploy frontend --project-name aidataboon --branch main`.
 - **Edge and DNS:** Cloudflare Terraform in `data_platform/09_cloudflare_infra.tf` and `agents/07_cloudflare_agents.tf`, each with its own state. Terraform state files are git-ignored.
+
+## License
+
+[MIT](LICENSE)
