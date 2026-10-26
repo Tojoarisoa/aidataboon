@@ -433,6 +433,16 @@
       return Number.isNaN(d.getTime()) ? "" : dateFmt.format(d);
     }
 
+    // The API picks the best matches; the page lists them newest first.
+    // Undated results go last, and ties keep their relevance order.
+    function newestFirst(sources) {
+      const time = (s) => {
+        const t = new Date(s.published_at).getTime();
+        return Number.isNaN(t) ? -Infinity : t;
+      };
+      return [...sources].sort((a, b) => time(b) - time(a));
+    }
+
     function el(tag, props = {}, children = []) {
       const node = document.createElement(tag);
       Object.assign(node, props);
@@ -463,6 +473,8 @@
       } else if (src.source === "github") {
         if (score) items.push(plural(score, "star", "stars"));
         if (comments) items.push(plural(comments, "fork", "forks"));
+        // A repo's date is its creation date; shown so the date order is visible.
+        if (src.published_at) items.push(`Created ${formatDate(src.published_at)}`);
       } else {
         if (src.author) items.push(formatAuthors(src.author));
         if (src.published_at) items.push(formatDate(src.published_at));
@@ -594,7 +606,7 @@
             : "No matches. Try fewer or broader words.";
           sourcesEl.append(el("li", { className: "empty", textContent: message }));
         } else {
-          for (const src of sources) sourcesEl.append(renderResult(src));
+          for (const src of newestFirst(sources)) sourcesEl.append(renderResult(src));
           renderSummary(data);
         }
         sourcesEl.hidden = false;
@@ -654,17 +666,13 @@
       });
     }
 
-    // Say what is in the index before anyone searches. This also wakes the
-    // API from its idle state, so the first search is faster.
+    // Say how current the index is before anyone searches. This also wakes
+    // the API from its idle state, so the first search is faster.
     fetch(`${API_BASE}/health`)
       .then((res) => (res.ok ? res.json() : null))
       .then((health) => {
-        if (!health || !health.documents_indexed) return;
-        const count = plural(health.documents_indexed, "item", "items");
-        const asOf = health.data_as_of ? formatDate(health.data_as_of) : "";
-        indexNoteEl.textContent = asOf
-          ? `${count} indexed, refreshed daily. Newest from ${asOf}.`
-          : `${count} indexed.`;
+        const asOf = health && health.data_as_of ? formatDate(health.data_as_of) : "";
+        if (asOf) indexNoteEl.textContent = `Refreshed daily. Newest from ${asOf}.`;
       })
       .catch(() => {});
 
