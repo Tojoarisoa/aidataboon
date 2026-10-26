@@ -213,11 +213,20 @@
 
     #answer {
       display: none;
+      max-width: 38rem;
       margin: 0 0 1.5rem;
       font: 400 var(--step-1)/1.6 var(--serif);
       white-space: pre-wrap;
       overflow-wrap: anywhere;
     }
+    /* Citations in the answer jump to the numbered result they cite. */
+    #answer .cite {
+      color: var(--accent);
+      font: 700 var(--step--1)/1 var(--sans);
+      text-decoration: none;
+      vertical-align: 0.2em;
+    }
+    #answer .cite:hover { text-decoration: underline; }
 
     /* Results */
     #sources { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
@@ -237,6 +246,8 @@
       border-radius: 2px;
       background: var(--src);
     }
+    .result { scroll-margin-top: 1rem; }
+    .result:target { background: color-mix(in srgb, var(--src) 8%, transparent); }
     .src-hackernews { --src: var(--hn); }
     .src-arxiv { --src: var(--arxiv); }
     .src-github { --src: var(--github); }
@@ -247,6 +258,7 @@
       font-size: var(--step--1);
       font-weight: 700;
     }
+    .result-num { margin-right: 0.4rem; color: var(--muted); font-weight: 500; }
     .result h2 {
       margin: 0;
       max-width: 38rem;
@@ -482,11 +494,13 @@
       return items.filter(Boolean);
     }
 
-    function renderResult(src) {
+    // `n` is the result's citation number, as used in the answer's [n].
+    function renderResult(src, n) {
       const key = SOURCES[src.source] ? src.source : "other";
-      const li = el("li", { className: `result src-${key}` });
+      const li = el("li", { className: `result src-${key}`, id: `result-${n}` });
 
-      li.append(el("p", { className: "result-source", textContent: SOURCES[src.source] || src.source || "Source" }));
+      const num = el("span", { className: "result-num", textContent: `[${n}]` });
+      li.append(el("p", { className: "result-source" }, [num, SOURCES[src.source] || src.source || "Source"]));
 
       const title = el("a", {
         href: src.url || "#",
@@ -544,6 +558,22 @@
       statusEl.textContent = text;
     }
 
+    // Builds the answer as text nodes, turning [n] citations that match a
+    // result into links to it. The answer text is never parsed as HTML.
+    function renderAnswer(answer, count) {
+      const parts = [];
+      let last = 0;
+      for (const m of answer.matchAll(/\[(\d+)\]/g)) {
+        const n = Number(m[1]);
+        if (n < 1 || n > count) continue;
+        parts.push(answer.slice(last, m.index));
+        parts.push(el("a", { className: "cite", href: `#result-${n}`, textContent: `[${n}]` }));
+        last = m.index + m[0].length;
+      }
+      parts.push(answer.slice(last));
+      answerEl.replaceChildren(...parts.filter((p) => p !== ""));
+    }
+
     // Without an LLM configured, the API returns an extractive placeholder
     // that only repeats the abstracts shown below, so it is not displayed.
     function isPlaceholderAnswer(answer) {
@@ -594,7 +624,7 @@
         const sources = data.sources || [];
 
         if (sources.length && data.answer && !isPlaceholderAnswer(data.answer)) {
-          answerEl.textContent = data.answer;
+          renderAnswer(data.answer, sources.length);
           answerEl.style.display = "block";
         }
 
@@ -606,7 +636,7 @@
             : "No matches. Try fewer or broader words.";
           sourcesEl.append(el("li", { className: "empty", textContent: message }));
         } else {
-          for (const src of newestFirst(sources)) sourcesEl.append(renderResult(src));
+          newestFirst(sources).forEach((src, i) => sourcesEl.append(renderResult(src, i + 1)));
           renderSummary(data);
         }
         sourcesEl.hidden = false;

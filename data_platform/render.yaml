@@ -38,8 +38,14 @@ services:
         value: "8000"
       - key: WORKERS
         value: "1"
+      # Claude writes the cited search answers; without ANTHROPIC_API_KEY,
+      # or if a call fails, the API falls back to an extractive answer.
       - key: LLM_PROVIDER
-        value: none
+        value: anthropic
+      - key: ANTHROPIC_MODEL
+        value: claude-opus-5-5
+      - key: ANTHROPIC_API_KEY
+        sync: false
       - key: S3_GOLD_BUCKET
         value: aidataboon-gold
       - key: S3_REGION

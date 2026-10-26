@@ -32,6 +32,7 @@ sentence-transformers>=2.7,<3.0
 
 # pgvector-backed vector store
 psycopg[binary]>=3.1,<4.0
+anthropic>=1.12.1,<2.0
 
 # /metrics endpoint (Prometheus exposition format)
 prometheus-client>=0.20,<1.0
