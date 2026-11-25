@@ -1,7 +1,7 @@
 # Runtime dependencies for 05_rag_service.py (Dockerfile.rag).
 #
 # 05_rag_service.py is designed to degrade gracefully when these are
-# missing (see its _ST_AVAILABLE / _PSYCOPG_AVAILABLE / _PROMETHEUS_AVAILABLE
+# missing (see its _FASTEMBED_AVAILABLE / _PSYCOPG_AVAILABLE / _PROMETHEUS_AVAILABLE
 # / _FASTAPI_AVAILABLE flags), but the container image installs all of them
 # so the deployed service runs with full functionality, not fallbacks.
 #
@@ -23,12 +23,11 @@ fastapi>=0.110,<1.0
 pydantic>=2.6,<3.0
 uvicorn[standard]>=0.29,<1.0
 
-# Embeddings + cross-encoder reranking (Day 27 core capability).
-# torch is installed separately (CPU-only wheel) by Dockerfile.rag before
-# this file is processed, so it is intentionally not listed here; pip
-# will see the already-installed torch satisfies sentence-transformers'
-# requirement and will not pull in the much larger default CUDA build.
-sentence-transformers>=2.7,<3.0
+# Embeddings + cross-encoder reranking on ONNX Runtime (no torch): the
+# embedding model fits a 512MB host. The ingest job's `embed` step
+# installs this same file, so documents and queries are embedded by the
+# same library versions.
+fastembed>=0.9.1,<0.10
 
 # pgvector-backed vector store
 psycopg[binary]>=3.1,<4.0

@@ -4,8 +4,9 @@
 # hn.algolia.com, export.arxiv.org and api.github.com (some local
 # networks block/throttle these), then writes Bronze -> Silver -> Gold
 # straight to Cloudflare R2 via 02_data_ingestion.py and 03_lakehouse.py.
-# Finally it redeploys the RAG API, which re-indexes Gold on startup, so
-# new items become searchable.
+# It then embeds the Gold knowledge base into pgvector (05_rag_service.py
+# embed), so the RAG API only has to embed search queries, and finally
+# redeploys the API so it serves the new items.
 #
 # One-time setup: add these as repo secrets (Settings -> Secrets and
 # variables -> Actions):
@@ -18,6 +19,10 @@
 #   RENDER_DEPLOY_HOOK_API  - deploy hook URL of the aidataboon-api service
 #                             (optional; without it, new data is only
 #                             indexed on the API's next deploy)
+#   DATABASE_URL            - the API's Postgres (pgvector) connection
+#                             string, as set on aidataboon-api (optional;
+#                             without it, documents get model vectors only
+#                             when the API embeds a few at startup)
 name: Data ingestion (R2)
 
 on:
@@ -62,6 +67,29 @@ jobs:
           S3_GOLD_BUCKET: aidataboon-gold
         run: uv run python data_platform/03_lakehouse.py
 
+      # Runs on Python 3.11 with the API image's own requirements, so
+      # documents and queries are embedded by the same library versions.
+      # A failure here still lets the redeploy below ship the new data;
+      # the last step then fails the run.
+      - name: Embed the knowledge base into pgvector
+        id: embed
+        continue-on-error: true
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          S3_ENDPOINT_URL: ${{ secrets.S3_ENDPOINT_URL }}
+          S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
+          S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
+          S3_REGION: auto
+          S3_GOLD_BUCKET: aidataboon-gold
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::warning::DATABASE_URL is not set; documents were not embedded."
+            exit 0
+          fi
+          uv run --no-project --python 3.11 \
+            --with-requirements data_platform/requirements-rag.txt \
+            python data_platform/05_rag_service.py embed
+
       - name: Re-index the RAG API (redeploy on Render)
         env:
           DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_API }}
@@ -72,3 +100,9 @@ jobs:
           fi
           curl -fsS -X POST "$DEPLOY_HOOK" -o /dev/null
           echo "Triggered a redeploy of aidataboon-api."
+
+      - name: Fail the run if embedding failed
+        if: steps.embed.outcome == 'failure'
+        run: |
+          echo "::error::Embedding the knowledge base failed; see the embed step's log."
+          exit 1

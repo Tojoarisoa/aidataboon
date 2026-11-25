@@ -15,7 +15,7 @@ A daily dashboard of top Hacker News stories, new arXiv papers and trending GitH
 |---|---|
 | Ingestion | Python, Apache Airflow, Apache Kafka |
 | Lakehouse | DuckDB, Delta Lake, S3-compatible object storage |
-| Search API | FastAPI, PostgreSQL + pgvector (HNSW), BM25, sentence-transformers, LLM answers |
+| Search API | FastAPI, PostgreSQL + pgvector (HNSW), BM25, all-MiniLM-L6-v2 embeddings on ONNX Runtime, Claude-selected sources and cited answers |
 | ML platform | MLflow, Feast, scikit-learn |
 | Agents | Prompt registry with A/B rollout, multi-agent orchestration, CI eval gate |
 | Observability | OpenTelemetry, Prometheus, Grafana |

@@ -725,7 +725,7 @@ services:
   # ---------------------------------------------------------------------------
   # RAG API: FastAPI application
   # Endpoints: POST /search, GET /trending, GET /topics, GET /health, GET /metrics
-  # Embedding: sentence-transformers all-MiniLM-L6-v2 (bundled in image)
+  # Embedding: all-MiniLM-L6-v2 on ONNX via fastembed (baked into the image)
   # Vector DB: pgvector via psycopg2
   # Feature store: Feast gRPC client → feast-server:6566
   # Tracing: OpenTelemetry → otel-collector:4317
@@ -767,12 +767,10 @@ services:
       S3_SECRET_KEY: minioadmin123
       S3_REGION: us-east-1
       S3_GOLD_BUCKET: aidataboon-gold
-      # Embedding config
-      EMBEDDING_MODEL: all-MiniLM-L6-v2
-      EMBEDDING_PROVIDER: local
-      EMBEDDING_BATCH_SIZE: "64"
-      RERANKER_MODEL: cross-encoder/ms-marco-MiniLM-L-6-v2
-      SENTENCE_TRANSFORMERS_HOME: /app/models
+      # Embedding + reranking (ONNX models baked into the image at /opt/models)
+      EMBEDDING_MODEL: sentence-transformers/all-MiniLM-L6-v2
+      RERANKER_MODEL: Xenova/ms-marco-MiniLM-L-6-v2
+      MODEL_THREADS: "2"
       # LLM for answer generation (Claude or OpenAI; none = extractive answers)
       LLM_PROVIDER: "${LLM_PROVIDER:-none}"
       OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
@@ -793,7 +791,6 @@ services:
       RAG_TOP_K_RERANK: "5"
       RAG_CACHE_TTL_SECONDS: "300"
     volumes:
-      - models-cache:/app/models   # shared sentence-transformers weights
       - rag-api-data:/app/data
     ports:
       - "8000:8000"
@@ -807,7 +804,7 @@ services:
       resources:
         limits:
           cpus: "2.0"
-          memory: 2G    # sentence-transformers needs ~500MB RAM
+          memory: 2G    # ~430MB per worker with both ONNX models loaded
         reservations:
           cpus: "0.5"
           memory: 512M

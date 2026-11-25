@@ -24,8 +24,19 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 COPY requirements-rag.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch && \
     pip install --no-cache-dir -r requirements-rag.txt
+
+# Bake the ONNX models into the image so a cold start never downloads
+# them. /opt/models, not /app/models: 01_local_stack.yml mounts a volume
+# over /app/models, which would hide them.
+ARG EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
+ARG RERANKER_MODEL=Xenova/ms-marco-MiniLM-L-6-v2
+RUN python -c "import sys; \
+from fastembed import TextEmbedding; \
+from fastembed.rerank.cross_encoder import TextCrossEncoder; \
+TextEmbedding(sys.argv[1], cache_dir='/opt/models'); \
+TextCrossEncoder(sys.argv[2], cache_dir='/opt/models')" \
+    "${EMBEDDING_MODEL}" "${RERANKER_MODEL}"
 
 # ---------------------------------------------------------------------------
 # Stage 2 (runtime): slim image, non-root user, curl for healthchecks
@@ -41,17 +52,19 @@ RUN useradd --create-home --shell /bin/bash appuser
 WORKDIR /app
 
 COPY --from=builder /opt/venv /opt/venv
+COPY --from=builder --chown=appuser:appuser /opt/models /opt/models
 COPY 05_rag_service.py .
 
-# /app/models: sentence-transformers cache (mounted as a volume in
-# 01_local_stack.yml). /app/data: optional local Gold-layer parquet fallback.
-RUN mkdir -p /app/models /app/data && chown -R appuser:appuser /app
+# /app/data: optional local Gold-layer parquet fallback.
+RUN mkdir -p /app/data && chown -R appuser:appuser /app
 
+# HF_HUB_OFFLINE: the models are in /opt/models, so never call the Hub.
 ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     PORT=8000 \
     WORKERS=2 \
-    SENTENCE_TRANSFORMERS_HOME=/app/models
+    MODEL_CACHE_DIR=/opt/models \
+    HF_HUB_OFFLINE=1
 
 USER appuser
 EXPOSE 8000

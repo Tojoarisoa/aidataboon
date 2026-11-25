@@ -280,6 +280,8 @@ Use `sentence-transformers` library with the `all-MiniLM-L6-v2` model for all em
 - Negative: 384-dim embeddings have lower expressiveness than OpenAI's 1536-dim text-embedding-3-small. For highly semantic queries, quality may be marginally lower.
 - Mitigation: Cross-encoder re-ranking (ms-marco-MiniLM-L-6-v2) compensates for bi-encoder limitations. Optional OpenAI fallback configurable via `EMBEDDING_PROVIDER=openai` environment variable.
 
+**Update (2026-11-26):** The model stays, the runtime changes. torch + sentence-transformers did not fit the API's 512MB free-tier host, so production had been running on the feature-hashing fallback, with no semantic search at all. The API now runs the same `all-MiniLM-L6-v2` (and the optional ms-marco cross-encoder) on ONNX Runtime via `fastembed`: about 230MB with the embedding model loaded, under 0.3 s per query embedding at 0.1 CPU. Documents are embedded by the daily ingest job (`05_rag_service.py embed`), which also backfills the pgvector archive; each row records the model that embedded it, and vector search only compares rows from the query's model. The cross-encoder takes about 20 s per search at 0.1 CPU, so it stays off in production; Claude, which already writes the answer, picks the relevant sources from the top hybrid-search candidates instead.
+
 ---
 
 ### ADR-006: delta-rs Python Library Over PySpark for Delta Lake Writes

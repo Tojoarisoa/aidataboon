@@ -38,6 +38,18 @@ services:
         value: "8000"
       - key: WORKERS
         value: "1"
+      # Search: all-MiniLM-L6-v2 embeds queries on ONNX (~230MB of the
+      # 512MB). Documents are embedded by the ingest job's `embed` step,
+      # so startup embeds at most a few stragglers. The cross-encoder is
+      # too slow for 0.1 CPU; Claude picks the cited sources instead.
+      - key: EMBEDDINGS_ENABLED
+        value: "true"
+      - key: RERANKER_ENABLED
+        value: "false"
+      - key: MODEL_THREADS
+        value: "1"
+      - key: EMBED_AT_STARTUP_MAX
+        value: "25"
       # Claude writes the cited search answers. ANTHROPIC_API_KEY comes from
       # a dedicated Claude Console workspace with a monthly spend limit.
       # (Workload identity federation would avoid the key but needs Render's

@@ -7,7 +7,8 @@
 # daily ingestion run are what trigger its deploys.
 #
 # smoke-test - builds Dockerfile.rag and checks the container serves /health
-#              and /search on its synthetic knowledge base
+#              and /search on its synthetic knowledge base, embedded with
+#              the model baked into the image
 # deploy     - calls the RENDER_DEPLOY_HOOK_API deploy hook
 # =============================================================================
 
@@ -39,7 +40,7 @@ jobs:
           # store and the built-in synthetic knowledge base.
           docker run -d --name api -p 8000:8000 \
             -e PORT=8000 -e WORKERS=1 -e LLM_PROVIDER=none \
-            -e EMBEDDINGS_ENABLED=false -e RERANKER_ENABLED=false \
+            -e EMBEDDINGS_ENABLED=true -e RERANKER_ENABLED=false \
             -e DATABASE_URL=postgresql://none@127.0.0.1:1/none \
             -e LOCAL_GOLD_DIR=/nonexistent -e S3_ENDPOINT_URL=http://127.0.0.1:1 \
             aidataboon-api:ci
@@ -54,6 +55,7 @@ jobs:
           import json, sys
           d = json.load(sys.stdin)
           assert d["status"] == "ok" and d["documents_indexed"] > 0, d
+          assert d["embedding_backend"] != "feature-hash", d
           '
           curl -fsS -X POST http://127.0.0.1:8000/search \
             -H "Content-Type: application/json" \
