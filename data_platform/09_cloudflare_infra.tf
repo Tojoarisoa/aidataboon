@@ -46,6 +46,7 @@
 #   Zone   - Workers Routes   - Edit
 #   Zone   - Zone WAF         - Edit  (zone-level rate-limiting ruleset)
 #   Zone   - Cache Rules      - Edit  (cloudflare_ruleset.cache_data_bucket)
+#   Zone   - Single Redirect  - Edit  (cloudflare_ruleset.www_redirect)
 #   Account - Workers Scripts - Edit
 #   Account - Cloudflare Pages - Edit
 #   Account - R2              - Edit
@@ -405,6 +406,16 @@ resource "cloudflare_record" "dashboard" {
   proxied = true
 }
 
+# www.aidataboon.com -> apex. Proxied so the www_redirect ruleset below can
+# answer with a 301 at the edge; the CNAME target is never fetched.
+resource "cloudflare_record" "www" {
+  zone_id = var.cloudflare_zone_id
+  name    = "www"
+  type    = "CNAME"
+  content = var.domain_name
+  proxied = true
+}
+
 # data.aidataboon.com is intentionally NOT defined here; it is managed by
 # the cloudflare_r2_custom_domain.gold_public resource above.
 
@@ -437,6 +448,32 @@ resource "cloudflare_ruleset" "cache_data_bucket" {
       browser_ttl {
         mode    = "override_origin"
         default = 3600
+      }
+    }
+  }
+}
+
+# Redirect www to the apex (301, path and query kept) so the site has one
+# canonical hostname.
+resource "cloudflare_ruleset" "www_redirect" {
+  zone_id     = var.cloudflare_zone_id
+  name        = "${var.project_name}-redirect-rules"
+  description = "Redirect www.${var.domain_name} to ${var.domain_name}"
+  kind        = "zone"
+  phase       = "http_request_dynamic_redirect"
+
+  rules {
+    description = "Redirect www to the apex domain"
+    expression  = "(http.host eq \"www.${var.domain_name}\")"
+    action      = "redirect"
+
+    action_parameters {
+      from_value {
+        status_code = 301
+        target_url {
+          expression = "concat(\"https://${var.domain_name}\", http.request.uri.path)"
+        }
+        preserve_query_string = true
       }
     }
   }
