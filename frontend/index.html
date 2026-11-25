@@ -509,19 +509,33 @@
       return hnId ? `https://news.ycombinator.com/item?id=${encodeURIComponent(hnId)}` : "";
     }
 
-    // Retries Cloudflare's 524 (the API waking from scale-to-zero) before
-    // giving up, so a cold start doesn't surface as a raw error.
+    // Render puts the API to sleep when it is idle. While it sleeps, requests
+    // that reach it through the Cloudflare Worker get a 429
+    // (x-render-routing: hibernate-rate-limited, or a challenge page) instead
+    // of waking it; one direct request to its own address does wake it.
+    const API_WAKE_URL = "https://aidataboon-api.onrender.com/health";
+    const WAKING_STATUSES = new Set([429, 502, 503, 504, 524]);
+    const WAKE_WAITS = [10, 15, 20, 25, 30]; // seconds between retries, ~100 s in all
+    let lastWake = -Infinity;
+
+    // Sends the direct wake request at most every 30 seconds, whichever call
+    // asks first. no-cors: only the request matters, the reply is never read.
+    function wakeApi() {
+      if (Date.now() - lastWake < 30000) return;
+      lastWake = Date.now();
+      fetch(API_WAKE_URL, { mode: "no-cors", cache: "no-store" }).catch(() => {});
+    }
+
+    // Retries while the API wakes up (or while a rate limit clears), so a
+    // cold start doesn't surface as a raw error.
     async function fetchWithWake(url, options, onWaiting) {
-      const maxAttempts = 3;
       let res;
-      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      for (let attempt = 0; ; attempt++) {
         res = await fetch(url, options);
-        if (res.status === 524 && attempt < maxAttempts) {
-          if (onWaiting) onWaiting(5 * attempt);
-          await new Promise((r) => setTimeout(r, 5000 * attempt));
-          continue;
-        }
-        break;
+        if (!WAKING_STATUSES.has(res.status) || attempt >= WAKE_WAITS.length) break;
+        wakeApi();
+        if (onWaiting) onWaiting(WAKE_WAITS[attempt]);
+        await new Promise((r) => setTimeout(r, WAKE_WAITS[attempt] * 1000));
       }
       if (!res.ok) throw new Error(`the API returned ${res.status}`);
       return res.json();
